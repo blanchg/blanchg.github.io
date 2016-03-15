@@ -320,6 +320,16 @@ function entry() {
       }
 }
 
+document.addEventListener('copy', function(e) {
+    var textToPutOnClipboard = getSelected().map(name).join(",");
+    // if (isIe) {
+    //     window.clipboardData.setData('Text', textToPutOnClipboard);    
+    // } else {
+        e.clipboardData.setData('text/plain', textToPutOnClipboard);
+    // }
+    e.preventDefault();
+});
+
 function submitEntry() {
     displayEntry(params.submit);
 }
