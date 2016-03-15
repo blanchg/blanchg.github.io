@@ -57,7 +57,7 @@ var params = {
     submitEntry: submitEntry
 };
 
-gui.add(params, 'size').name('N').onFinishChange(function(value) {
+gui.add(params, 'size').min(2).step(1).name('N').onFinishChange(function(value) {
   drawGrid(parseInt(value));
 });
 
@@ -339,6 +339,8 @@ function displayEntry(entry) {
 function updateCalculations() {
 
     var selected = targetList.filter(function(o) {
+        if (o.material === invalidMaterial)
+            o.material = emptyMaterial;
         if (o.material === selectedBadMaterial)
             o.material = selectedMaterial;
         return o.material === selectedMaterial;
@@ -377,14 +379,88 @@ function updateCalculations() {
 
 function highlightInvalidPoints(selected) {
 
+    if (selected.length < 3)
+        return;
+
+    // var remainder = targetList.filter(function(o) {
+    //     return selected.indexOf(o) != -1;
+    // });
+    var combinations = Combinatorics.combination(selected, 3);
+    var abc = null;
+    while(abc = combinations.next()) {
+        var parts = detparts(abc[0].position, abc[1].position, abc[2].position);
+        for (var i = targetList.length-1; i >= 0; i--) {
+            var p4 = targetList[i];
+            if (p4.material !== emptyMaterial)
+                continue;
+
+            if (detlast(parts, p4.position) === 0) {
+                p4.material = invalidMaterial;
+            }
+        }
+    }
+
+}
+
+function detlast(parts, p4) {
+    var n41 = p4.x, n42 = p4.y, n43 = p4.z;
+
+    return (
+        n41 * parts[0] +
+        n42 * parts[1] +
+        n43 * parts[2] +
+        parts[3]
+    );
+}
+
+function detparts(p1, p2, p3) {
+
+    var n11 = p1.x, n12 = p1.y, n13 = p1.z;
+    var n21 = p2.x, n22 = p2.y, n23 = p2.z;
+    var n31 = p3.x, n32 = p3.y, n33 = p3.z;
+
+    return [
+        (
+             + n23 * n32
+             - n13 * n32
+             - n22 * n33
+             + n12 * n33
+             + n13 * n22
+             - n12 * n23
+        ),
+        (
+             + n11 * n23
+             - n11 * n33
+             + n21 * n33
+             - n13 * n21
+             + n13 * n31
+             - n23 * n31
+        ),
+        (
+             + n11 * n32
+             - n11 * n22
+             - n21 * n32
+             + n12 * n21
+             + n22 * n31
+             - n12 * n31
+        ),
+        (
+             - n13 * n22 * n31
+             - n11 * n23 * n32
+             + n11 * n22 * n33
+             + n13 * n21 * n32
+             - n12 * n21 * n33
+             + n12 * n23 * n31
+        )
+    ];
 }
 
 function determinant(p1, p2, p3, p4) {
 
-    var n11 = p1.x, n12 = p1.y, n13 = p1.z, n14 = 1;
-    var n21 = p2.x, n22 = p2.y, n23 = p2.z, n24 = 1;
-    var n31 = p3.x, n32 = p3.y, n33 = p3.z, n34 = 1;
-    var n41 = p4.x, n42 = p4.y, n43 = p4.z, n44 = 1;
+    var n11 = p1.x, n12 = p1.y, n13 = p1.z;
+    var n21 = p2.x, n22 = p2.y, n23 = p2.z;
+    var n31 = p3.x, n32 = p3.y, n33 = p3.z;
+    var n41 = p4.x, n42 = p4.y, n43 = p4.z;
 
     //TODO: make this more efficient
     //( based on http://www.euclideanspace.com/maths/algebra/matrix/functions/inverse/fourD/index.htm )
