@@ -94,12 +94,12 @@ function init() {
         light = new THREE.AmbientLight( 0x222222 );
         scene.add( light );
 
-        gridPointGeom = new THREE.SphereGeometry(0.05, 2, 2);
+        gridPointGeom = new THREE.SphereGeometry(0.1, 2, 2);
 
         selectedMaterial = new THREE.MeshBasicMaterial( { color: 0x000088 });
         selectedBadMaterial = new THREE.MeshBasicMaterial( { color: 0xaa0088 });
-        emptyMaterial = new THREE.MeshBasicMaterial( { color: 0x00ee00, wireframe: true, transparent: false });
-        invalidMaterial = new THREE.MeshBasicMaterial( { color: 0xdd0000, wireframe: true, transparent: false })
+        emptyMaterial = new THREE.MeshBasicMaterial( { color: 0x00ee00 });
+        invalidMaterial = new THREE.MeshBasicMaterial( { color: 0xdd0000 })
 
         // // texture - texture must not be in same folder or there is an error.
         // var texture = THREE.ImageUtils.loadTexture( 'images/texture.jpg', {}, function(){ 
@@ -311,7 +311,13 @@ function getSelected() {
 }
 
 function entry() {
-    console.log("Entry:", getSelected().map(name).join(", "));
+    console.log("Entry:", getSelected().map(name).join(","));
+    params.submit = getSelected().map(name).join(",");
+
+      // Iterate over all controllers
+      for (var i in gui.__controllers) {
+        gui.__controllers[i].updateDisplay();
+      }
 }
 
 function submitEntry() {
@@ -339,6 +345,10 @@ function displayEntry(entry) {
 function updateCalculations() {
 
     var selected = targetList.filter(function(o) {
+
+        o.scale.x = 1;
+        o.scale.y = 1;
+        o.scale.z = 1;
         if (o.material === invalidMaterial)
             o.material = emptyMaterial;
         if (o.material === selectedBadMaterial)
@@ -396,7 +406,14 @@ function highlightInvalidPoints(selected) {
 
             if (detlast(parts, p4.position) === 0) {
                 p4.material = invalidMaterial;
+                p4.scale.x = 0.5;
+                p4.scale.y = 0.5;
+                p4.scale.z = 0.5;
+                continue;
             }
+            p4.scale.x = 2;
+            p4.scale.y = 2;
+            p4.scale.z = 2;
         }
     }
 
