@@ -50,22 +50,18 @@ var gui = new dat.GUI({
 });
 var params = {
     size: size,
-    run: searchForBest,
-    stop: stopSearch,
-    entry: entry,
-    submit: '',
-    submitEntry: submitEntry
+    solution: '0'
 };
 
 gui.add(params, 'size').min(2).step(1).name('N').onFinishChange(function(value) {
   drawGrid(parseInt(value));
 });
 
-gui.add(params, 'run').name('Search');
-gui.add(params, 'stop').name('Stop');
-gui.add(params, 'entry').name('Print Entry');
-gui.add(params, 'submit').name('Entry');
-gui.add(params, 'submitEntry').name('View Entry');
+// gui.add(params, 'run').name('Search');
+// gui.add(params, 'stop').name('Stop');
+// gui.add(params, 'entry').name('Print Entry');
+gui.add(params, 'solution').name('Solution Size');
+// gui.add(params, 'submitEntry').name('View Entry');
 
 function init() {
     
@@ -160,7 +156,7 @@ function init() {
         container.appendChild( stats.domElement );
 
         container.addEventListener( 'mousedown', onDocumentMouseDown, false );
-        container.addEventListener( 'mousemove', onDocumentMouseMove, false );
+        // container.addEventListener( 'mousemove', onDocumentMouseMove, false );
         container.addEventListener( 'mouseup', onDocumentMouseUp, false );
         container.addEventListener( 'touchstart', onDocumentTouchStart, false );
         container.addEventListener( 'touchmove', onDocumentTouchMove, false );
@@ -171,7 +167,7 @@ function init() {
         window.addEventListener( 'resize', onWindowResize, false );
         
         //for debuging stats
-        interval = setInterval( debugInfo, 50 );
+        // interval = setInterval( debugInfo, 50 );
 
 }
 
@@ -329,6 +325,16 @@ document.addEventListener('copy', function(e) {
     // }
     e.preventDefault();
 });
+document.addEventListener('paste', function(e) {
+    // var textToPutOnClipboard = getSelected().map(name).join(",");
+    // if (isIe) {
+    //     window.clipboardData.setData('Text', textToPutOnClipboard);    
+    // } else {
+        // e.clipboardData.setData('text/plain', textToPutOnClipboard);
+    // }
+    e.clipboardData.items[0].getAsString(function(data) { displayEntry(data)});
+    e.preventDefault();
+});
 
 function submitEntry() {
     displayEntry(params.submit);
@@ -340,8 +346,11 @@ function displayEntry(entry) {
         clearVertex(o);
     })
     removeChildren(connectorgroup);
-
-    var coords = entry.replace(/ /g,'').slice(1,-1).split("),(")
+    entry = entry.replace(/[ ;]/g,'').slice(1,-1);
+    var coords = entry.split("),(");
+    if (coords.length < 2) {
+        coords = entry.split(")(");
+    }
     coords.forEach(function (c) {
         c = "(" + c + ")";
         targetList.forEach(function (o) {
@@ -393,7 +402,21 @@ function updateCalculations() {
 
     highlightInvalidPoints(selected);
 
-    return isCoplanar(selected, true);
+    if (isCoplanar(selected, true)) {
+        params.solution = '' + selected.length;
+        updateGUI();
+        return true;
+    } else {
+        return false;
+    }
+
+}
+
+function updateGUI() {
+      // Iterate over all controllers
+      for (var i in gui.__controllers) {
+        gui.__controllers[i].updateDisplay();
+      }
 
 }
 
@@ -421,9 +444,9 @@ function highlightInvalidPoints(selected) {
                 p4.scale.z = 0.5;
                 continue;
             }
-            p4.scale.x = 2;
-            p4.scale.y = 2;
-            p4.scale.z = 2;
+            // p4.scale.x = 2;
+            // p4.scale.y = 2;
+            // p4.scale.z = 2;
         }
     }
 
@@ -595,7 +618,7 @@ function onDocumentMouseDown( event ) {
     event.preventDefault();
 
 
-    // container.addEventListener( 'mousemove', onDocumentMouseMove, false );
+    container.addEventListener( 'mousemove', onDocumentMouseMove, false );
     container.addEventListener( 'mouseup', onDocumentMouseUp, false );
     container.addEventListener( 'mouseout', onDocumentMouseOut, false );
 
@@ -620,46 +643,46 @@ function onDocumentMouseMove( event ) {
         targetRotationX = targetRotationOnMouseDownX + (mouseX - mouseXOnMouseDown) * 0.02;
     }
 
-    if (!mouseDown) {
-        mouse.x = ( ( event.clientX - renderer.domElement.offsetLeft ) / renderer.domElement.width ) * 2 - 1;
-        mouse.y = - ( ( event.clientY - renderer.domElement.offsetTop ) / renderer.domElement.height ) * 2 + 1;
-        raycaster.setFromCamera(mouse, camera);
-        var intersects = raycaster.intersectObjects( targetList, true );
-        // if there is one (or more) intersections
-        if ( intersects.length > 0 )
-        {
-            // console.log("Hit @ ", intersects[0].point );
-            // change the color of the closest face.
-            // intersects[ 0 ].face.color.setRGB( 0.8 * Math.random() + 0.2, 0, 0 ); 
-            // intersects[ 0 ].object.geometry.colorsNeedUpdate = true;
-            // toggleVertex(intersects[0].object);
-            if (mouseOver === intersects[0]) {
-                // do nothing
-            } else {
-                mouseOver = intersects[0];
-                renderer.domElement.title = mouseOver.object.name;
-                selected = getSelected();
-                if (selected.indexOf(mouseOver.object) == -1)
-                    selected.push(mouseOver.object);
-                if (isCoplanar(selected, false)) {
-                    selectedMaterial.color.set(0x0000aa);
-                } else {
-                    selectedMaterial.color.set(0xff0000);
-                }
-            }
-        } else {
-            mouseOver = null;
-            renderer.domElement.title = "";
-            selectedMaterial.color.set(0x0000aa);
-        }
-    }
+    // if (!mouseDown) {
+    //     mouse.x = ( ( event.clientX - renderer.domElement.offsetLeft ) / renderer.domElement.width ) * 2 - 1;
+    //     mouse.y = - ( ( event.clientY - renderer.domElement.offsetTop ) / renderer.domElement.height ) * 2 + 1;
+    //     raycaster.setFromCamera(mouse, camera);
+    //     var intersects = raycaster.intersectObjects( targetList, true );
+    //     // if there is one (or more) intersections
+    //     if ( intersects.length > 0 )
+    //     {
+    //         // console.log("Hit @ ", intersects[0].point );
+    //         // change the color of the closest face.
+    //         // intersects[ 0 ].face.color.setRGB( 0.8 * Math.random() + 0.2, 0, 0 ); 
+    //         // intersects[ 0 ].object.geometry.colorsNeedUpdate = true;
+    //         // toggleVertex(intersects[0].object);
+    //         if (mouseOver === intersects[0]) {
+    //             // do nothing
+    //         } else {
+    //             mouseOver = intersects[0];
+    //             renderer.domElement.title = mouseOver.object.name;
+    //             selected = getSelected();
+    //             if (selected.indexOf(mouseOver.object) == -1)
+    //                 selected.push(mouseOver.object);
+    //             if (isCoplanar(selected, false)) {
+    //                 selectedMaterial.color.set(0x0000aa);
+    //             } else {
+    //                 selectedMaterial.color.set(0xff0000);
+    //             }
+    //         }
+    //     } else {
+    //         mouseOver = null;
+    //         renderer.domElement.title = "";
+    //         selectedMaterial.color.set(0x0000aa);
+    //     }
+    // }
 
 }
 
 function onDocumentMouseUp( event ) {
     mouseDown = false;
 
-    // container.removeEventListener( 'mousemove', onDocumentMouseMove, false );
+    container.removeEventListener( 'mousemove', onDocumentMouseMove, false );
     container.removeEventListener( 'mouseup', onDocumentMouseUp, false );
     container.removeEventListener( 'mouseout', onDocumentMouseOut, false );
 
@@ -804,8 +827,8 @@ function render() {
 }
 
 
-function debugInfo()
-{
-    $('#debug').html("mouseX : " + mouseX + "   mouseY : " + mouseY + "</br>")
+// function debugInfo()
+// {
+//     $('#debug').html("mouseX : " + mouseX + "   mouseY : " + mouseY + "</br>")
    
-}
+// }
