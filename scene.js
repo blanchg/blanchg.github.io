@@ -340,12 +340,16 @@ function submitEntry() {
     displayEntry(params.submit);
 }
 
-function displayEntry(entry) {
-
+function clearAll() {
     targetList.forEach(function (o) {
         clearVertex(o);
     })
     removeChildren(connectorgroup);
+}
+
+function displayEntry(entry) {
+
+    clearAll()
     entry = entry.replace(/[ ;]/g,'').slice(1,-1);
     var coords = entry.split("),(");
     if (coords.length < 2) {
@@ -825,6 +829,11 @@ function render() {
     renderer.render( scene, camera );
 
 }
+
+document.addEventListener('keyup', function(e) {
+    if (e.keyCode == 27)
+        clearAll();
+})
 
 
 // function debugInfo()
