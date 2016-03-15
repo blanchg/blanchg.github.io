@@ -50,7 +50,8 @@ var gui = new dat.GUI({
 });
 var params = {
     size: size,
-    solution: '0'
+    solution: '0',
+    moves: ''
 };
 
 gui.add(params, 'size').min(2).step(1).name('N').onFinishChange(function(value) {
@@ -61,6 +62,7 @@ gui.add(params, 'size').min(2).step(1).name('N').onFinishChange(function(value) 
 // gui.add(params, 'stop').name('Stop');
 // gui.add(params, 'entry').name('Print Entry');
 gui.add(params, 'solution').name('Solution Size');
+gui.add(params, 'moves').name('Valid Moves');
 // gui.add(params, 'submitEntry').name('View Entry');
 
 function init() {
@@ -404,13 +406,14 @@ function updateCalculations() {
         connectorgroup.add(object);
     }
 
-    highlightInvalidPoints(selected);
+    params.moves = '' + highlightInvalidPoints(selected);
 
     if (isCoplanar(selected, true)) {
         params.solution = '' + selected.length;
         updateGUI();
         return true;
     } else {
+        updateGUI();
         return false;
     }
 
@@ -427,11 +430,12 @@ function updateGUI() {
 function highlightInvalidPoints(selected) {
 
     if (selected.length < 3)
-        return;
+        return '';
 
     // var remainder = targetList.filter(function(o) {
     //     return selected.indexOf(o) != -1;
     // });
+    var count = 0;
     var combinations = Combinatorics.combination(selected, 3);
     var abc = null;
     while(abc = combinations.next()) {
@@ -446,13 +450,14 @@ function highlightInvalidPoints(selected) {
                 p4.scale.x = 0.5;
                 p4.scale.y = 0.5;
                 p4.scale.z = 0.5;
-                continue;
+                count++;
             }
             // p4.scale.x = 2;
             // p4.scale.y = 2;
             // p4.scale.z = 2;
         }
     }
+    return targetList.length - count - selected.length;
 
 }
 
