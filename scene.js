@@ -94,7 +94,7 @@ function init() {
         light = new THREE.AmbientLight( 0x222222 );
         scene.add( light );
 
-        gridPointGeom = new THREE.SphereGeometry(0.05, 16, 16);
+        gridPointGeom = new THREE.SphereGeometry(0.05, 2, 2);
 
         selectedMaterial = new THREE.MeshBasicMaterial( { color: 0x000088 });
         selectedBadMaterial = new THREE.MeshBasicMaterial( { color: 0xaa0088 });
@@ -265,7 +265,7 @@ function drawGrid(size) {
     for (var z = 0; z < size; z++) {
         for (var y = 0; y < size; y++) {
             for (var x = 0; x < size; x++) {
-                var gridPoint = new THREE.Mesh( gridPointGeom.clone(), emptyMaterial );
+                var gridPoint = new THREE.Mesh( gridPointGeom, emptyMaterial );
                 gridPoint.name = "(" + [x,y,z].join(",") + ")";
                 gridPoint.position.set(x-half, y-half, z-half);
                 gridgroup.add(gridPoint);
