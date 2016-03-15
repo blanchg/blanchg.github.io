@@ -10,6 +10,7 @@ var gridPointGeom;
 var selectedMaterial;
 var selectedBadMaterial;
 var emptyMaterial;
+var invalidMaterial;
 var mouse = { x: 0, y: 0 };
 var raycaster;
 var targetList = [];
@@ -56,7 +57,7 @@ var params = {
     submitEntry: submitEntry
 };
 
-gui.add(params, 'size', ["2", "3", "5", "7", "11", "13"]).name('N').onFinishChange(function(value) {
+gui.add(params, 'size').name('N').onFinishChange(function(value) {
   drawGrid(parseInt(value));
 });
 
@@ -97,7 +98,8 @@ function init() {
 
         selectedMaterial = new THREE.MeshBasicMaterial( { color: 0x000088 });
         selectedBadMaterial = new THREE.MeshBasicMaterial( { color: 0xaa0088 });
-        emptyMaterial = new THREE.MeshBasicMaterial( { color: 0x00ee00, wireframe: true, transparent: false })
+        emptyMaterial = new THREE.MeshBasicMaterial( { color: 0x00ee00, wireframe: true, transparent: false });
+        invalidMaterial = new THREE.MeshBasicMaterial( { color: 0xdd0000, wireframe: true, transparent: false })
 
         // // texture - texture must not be in same folder or there is an error.
         // var texture = THREE.ImageUtils.loadTexture( 'images/texture.jpg', {}, function(){ 
@@ -367,7 +369,13 @@ function updateCalculations() {
         connectorgroup.add(object);
     }
 
+    highlightInvalidPoints(selected);
+
     return isCoplanar(selected, true);
+
+}
+
+function highlightInvalidPoints(selected) {
 
 }
 
@@ -589,7 +597,7 @@ function onDocumentMouseUp( event ) {
 }
 
 function toggleVertex(v) {
-    if (v.material === emptyMaterial) {
+    if (v.material === emptyMaterial || v.material === invalidMaterial) {
         selectVertex(v);
     } else {
         clearVertex(v);
