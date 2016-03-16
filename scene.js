@@ -11,6 +11,7 @@ var selectedMaterial;
 var selectedBadMaterial;
 var emptyMaterial;
 var invalidMaterial;
+var lineMaterial;
 var mouse = { x: 0, y: 0 };
 var raycaster;
 var targetList = [];
@@ -32,6 +33,9 @@ var windowHalfY = window.innerHeight / 2;
 
 var finalRotationY;
 
+var normalScale = 0.2;
+var badScale = 0.1;
+
 var size = 2;
 var maxDistance = Math.sqrt(3) * size;
 console.log("maxDistance", maxDistance);
@@ -44,6 +48,13 @@ var timing;
 init();
 drawGrid(size);
 animate();
+var b = null;
+var c = Combinatorics.combination([1,2,3,4,5,6,7,8,9], 8);
+var c2 = Combinatorics.bigCombination([1,2,3,4,5,6,7,8,9], 8);
+while ((b = c.next()) && (b2 = c2.next())) {
+    if (b.join("") != b2.join(""))
+        console.log("Error:",b.join(""), b2.join(""));
+}
 
 var gui = new dat.GUI({
     height : 1 * 32 - 1
@@ -54,8 +65,11 @@ var params = {
     moves: ''
 };
 
-gui.add(params, 'size').min(2).step(1).name('N').onFinishChange(function(value) {
-  drawGrid(parseInt(value));
+gui.add(params, 'size').min(2).max(97).step(1).name('N').onFinishChange(function(value) {
+    value = parseInt(value);
+    if (value > 97)
+        return;
+  drawGrid(value);
 });
 
 // gui.add(params, 'run').name('Search');
@@ -64,6 +78,7 @@ gui.add(params, 'size').min(2).step(1).name('N').onFinishChange(function(value) 
 gui.add(params, 'solution').name('Solution Size');
 gui.add(params, 'moves').name('Valid Moves');
 // gui.add(params, 'submitEntry').name('View Entry');
+
 
 function init() {
     
@@ -92,12 +107,13 @@ function init() {
         light = new THREE.AmbientLight( 0x222222 );
         scene.add( light );
 
-        gridPointGeom = new THREE.SphereGeometry(0.1, 2, 2);
+        // gridPointGeom = new THREE.SphereGeometry(0.1, 2, 2);
 
-        selectedMaterial = new THREE.MeshBasicMaterial( { color: 0x000088 });
-        selectedBadMaterial = new THREE.MeshBasicMaterial( { color: 0xaa0088 });
-        emptyMaterial = new THREE.MeshBasicMaterial( { color: 0x00ee00 });
-        invalidMaterial = new THREE.MeshBasicMaterial( { color: 0xdd0000 })
+        selectedMaterial = new THREE.SpriteMaterial( { color: 0x000088 });
+        selectedBadMaterial = new THREE.SpriteMaterial( { color: 0xaa0088 });
+        emptyMaterial = new THREE.SpriteMaterial( { color: 0x00ee00 });
+        invalidMaterial = new THREE.SpriteMaterial( { color: 0xdd0000 });
+        lineMaterial = new THREE.LineBasicMaterial( { color: 0xffaa00, linewidth: 1 } );
 
         // // texture - texture must not be in same folder or there is an error.
         // var texture = THREE.ImageUtils.loadTexture( 'images/texture.jpg', {}, function(){ 
@@ -263,7 +279,11 @@ function drawGrid(size) {
     for (var z = 0; z < size; z++) {
         for (var y = 0; y < size; y++) {
             for (var x = 0; x < size; x++) {
-                var gridPoint = new THREE.Mesh( gridPointGeom, emptyMaterial );
+                // var gridPoint = new THREE.Mesh( gridPointGeom, emptyMaterial );
+                var gridPoint = new THREE.Sprite( emptyMaterial );
+                gridPoint.scale.x = normalScale;
+                gridPoint.scale.y = normalScale;
+                gridPoint.scale.z = normalScale;
                 gridPoint.name = "(" + [x,y,z].join(",") + ")";
                 gridPoint.position.set(x-half, y-half, z-half);
                 gridgroup.add(gridPoint);
@@ -371,9 +391,9 @@ function updateCalculations() {
 
     var selected = targetList.filter(function(o) {
 
-        o.scale.x = 1;
-        o.scale.y = 1;
-        o.scale.z = 1;
+        o.scale.x = normalScale;
+        o.scale.y = normalScale;
+        o.scale.z = normalScale;
         if (o.material === invalidMaterial)
             o.material = emptyMaterial;
         if (o.material === selectedBadMaterial)
@@ -385,26 +405,26 @@ function updateCalculations() {
     removeChildren(connectorgroup);
     if (selected.length < 2)
         return true;
-    var combinations = Combinatorics.combination(selected, 2);
-    var ab = null;
-    while(ab = combinations.next()) {
-        var geometry = new THREE.Geometry();
-        var a = ab[0];
-        var b = ab[1];
-        var distance = 0.3;
+    // var cs = combinations(selected, 2);
+    // for (var i = 0; i < cs.length; i++) {
+    //     var ab = cs[i]
+    //     var geometry = new THREE.Geometry();
+    //     var a = ab[0];
+    //     var b = ab[1];
+    //     var distance = 0.3;
 
-        var a1 = getPointInBetweenByLen(a.position, b.position, distance);
-        var b1 = getPointInBetweenByLen(b.position, a.position, distance);
+    //     var a1 = getPointInBetweenByLen(a.position, b.position, distance);
+    //     var b1 = getPointInBetweenByLen(b.position, a.position, distance);
 
-        geometry.vertices.push(
-            a1,
-            b1
-        );
-        geometry.computeLineDistances();
-        var object = new THREE.LineSegments( geometry, new THREE.LineBasicMaterial( { color: 0xffaa00, linewidth: 1 } ) );
-        object.name = a.name + " - " + b.name;
-        connectorgroup.add(object);
-    }
+    //     geometry.vertices.push(
+    //         a1,
+    //         b1
+    //     );
+    //     geometry.computeLineDistances();
+    //     var object = new THREE.LineSegments( geometry, lineMaterial );
+    //     object.name = a.name + " - " + b.name;
+    //     connectorgroup.add(object);
+    // }
 
     params.moves = '' + highlightInvalidPoints(selected);
 
@@ -436,9 +456,11 @@ function highlightInvalidPoints(selected) {
     //     return selected.indexOf(o) != -1;
     // });
     var count = 0;
-    var combinations = Combinatorics.combination(selected, 3);
+    // var sj = selected.join(",");
+    var cs = Combinatorics.bigCombination(selected, 3);
+    // console.log(cs);
     var abc = null;
-    while(abc = combinations.next()) {
+    while(abc = cs.next()) {
         var parts = detparts(abc[0].position, abc[1].position, abc[2].position);
         for (var i = targetList.length-1; i >= 0; i--) {
             var p4 = targetList[i];
@@ -447,9 +469,9 @@ function highlightInvalidPoints(selected) {
 
             if (detlast(parts, p4.position) === 0) {
                 p4.material = invalidMaterial;
-                p4.scale.x = 0.5;
-                p4.scale.y = 0.5;
-                p4.scale.z = 0.5;
+                p4.scale.x = badScale;
+                p4.scale.y = badScale;
+                p4.scale.z = badScale;
                 count++;
             }
             // p4.scale.x = 2;
@@ -567,10 +589,9 @@ function isCoplanar(selected, updateMaterial) {
     if (selected.length < 4)
         return true;
 
-    combinations = Combinatorics.combination(selected, 4);
+    var cs = Combinatorics.bigCombination(selected, 4);
     // var matrix = new THREE.Matrix4();
-    var ab = null;
-    while(ab = combinations.next()) {
+    while(ab = cs.next()) {
         // matrix.set(
         //     ab[0].position.x, ab[0].position.y, ab[0].position.z, 1,
         //     ab[1].position.x, ab[1].position.y, ab[1].position.z, 1,
@@ -741,12 +762,12 @@ function toggleVertex(v) {
 
 function selectVertex(v) {
     v.material = selectedMaterial;
-    v.scale.set(2,2,2);
+    // v.scale.set(2,2,2);
 }
 
 function clearVertex(v) {
     v.material = emptyMaterial;
-    v.scale.set(1,1,1);
+    // v.scale.set(1,1,1);
 }
 
 function onDocumentMouseOut( event ) {

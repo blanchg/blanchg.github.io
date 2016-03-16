@@ -150,14 +150,180 @@
             valueOf: sizeOf,
             init: function() {
                 this.index = first;
+            // console.log("I", this.index.toString(2));
             },
             next: function() {
                 if (this.index >= maxIndex) return;
                 var i = 0,
                     n = this.index,
                     result = [];
-                for (; n; n >>>= 1, i++) if (n & 1) result.push(this[i]);
+                for (; n; n >>>= 1, i++) {
+                    // console.log("n", i, n.toString(2));
+                    if (n & 1) result.push(this[i]);
+                }
+
+                // console.log("I", result, this.index.toString(2));
                 this.index = nextIndex(this.index);
+                // console.log("NI", this.index.toString(2));
+                return result;
+            }
+        });
+        addProperties(that, common);
+        that.init();
+        return (typeof (fun) === 'function') ? that.map(fun) : that;
+    };
+    /* bigcombination */
+    var bigNextIndex = function(n, nelem) {
+        // console.log("bni", n.join(""), nelem);
+        // n = n.concat();
+        // // var smallest = n & -n,
+        // //     ripple = n + smallest,
+        // //     new_smallest = ripple & -ripple,
+        // //     ones = ((new_smallest / smallest) >> 1) - 1;
+        // // return ripple | ones;
+        // for (var i = 0; i < nelem; i++) {
+        //     var j = 0;
+        //     while (true) {
+        //         if (j < n.length && n[j] == 1) {
+        //             j++;
+        //             continue;
+        //         } else {
+        //             n[j] = 1;
+        //             break;
+        //         }
+        //     }
+        //     for (var k = 0; k < j; k++) {
+        //         n[k] = 0;
+        //     }
+        // }
+        // // console.log("r", n.join(""))
+        // return n;
+
+
+        var result = n.concat();
+        // for (var i = 0; i < result.length; i++) {
+        //     if (result[i] == 0) {
+        //         result[i]
+        //     }
+        // }
+        var j = nelem;
+        var i = 0;
+        for (i = result.length - 1; i >= 0; i--) {
+            if (result[i] == 1) {
+                j--;
+            } else {
+                break;
+            }
+        } 
+        if (j == 0) {
+            // Overflow
+            result[result.length] = 1;
+            for (var k = result.length - 2; k >= 0; k--) {
+                result[k] = (k < nelem-1)?1:0;
+            }
+        } else {
+            // Normal
+
+            // first zero after 1
+            var i1 = -1;
+            var i0 = -1;
+            for (var i = 0; i < result.length; i++) {
+                if (result[i] == 0 && i1 != -1) {
+                    i0 = i;
+                }
+                if (result[i] == 1) {
+                    i1 = i;
+                }
+                if (i0 != -1 && i1 != -1) {
+                    result[i0] = 1;
+                    result[i1] = 0;
+                    break;
+                }
+            }
+
+            j = nelem;
+            for (var i = result.length - 1; i >= i1; i--) {
+                if (result[i] == 1)
+                    j--;
+            }
+            for (var i = 0; i < i1; i++) {
+                result[i] = (i < j)?1:0;
+            }
+        }
+        // console.log("result", result.concat().reverse().join(""));
+
+        return result;
+
+        // Add 1 and keep the first nelem 1's only set rest to zero
+        // if it overflows set the first nelem-1 values to 1 
+
+    };
+    var buildFirst = function(nelem) {
+        var result = [];
+        for (var i = 0; i < nelem; i++) {
+            result[i] = 1;
+        }
+        result[0] = 1;
+        return result;
+    };
+    var shiftRight = function(n, j) {
+        // console.log("ShiftRight", n.join(""),j)
+        n = n.concat();
+        for (var i = j; i < n.length; i++) {
+            n[i-j] = n[i];
+        }
+        for (var i = n.length - j; i < n.length; i++) {
+            n[i] = 0;
+        }
+        // console.log("n", n.join(""))
+        n.length = n.length - j;
+        return n;
+    };
+    var truish = function(n) {
+        for (var i = n.length - 1; i >= 0; i--) {
+            if (n[i] !== 0)
+                return true;
+        }
+        return false;
+    }
+    var bigCombination = function(ary, nelem, fun) {
+        if (!nelem) nelem = ary.length;
+        if (nelem < 1) throw new RangeError;
+        if (nelem > ary.length) throw new RangeError;
+        var first = buildFirst(nelem), //(1 << nelem) - 1,
+            size = C(ary.length, nelem),
+            maxIndex = ary.length,
+            sizeOf = function() {
+                return size;
+            },
+            that = Object.create(ary.slice(), {
+                length: {
+                    get: sizeOf
+                }
+            });
+        hideProperty(that, 'index');
+        addProperties(that, {
+            valueOf: sizeOf,
+            init: function() {
+                this.index = first;
+            },
+            next: function() {
+                // console.log("next", this.index.length, maxIndex);
+                if (this.index.length > maxIndex) return;
+                var i = 0,
+                    n = this.index.concat(),
+                    result = [];
+                for (; truish(n); n = shiftRight(n, 1), i++) {
+                    // console.log("n", i, n.join(""));
+                    if (n[0] & 1) result.push(this[i]);
+                }
+                // console.log("I", result, this.index.concat().reverse().join(""));
+                this.index = bigNextIndex(this.index, nelem);
+                // console.log("NI", this.index.join(""));
+                // console.log("i", this.nelemI)
+                this.nelemI--;
+                if (this.nelemI <= 0)
+                    this.nelemI = nelem;
                 return result;
             }
         });
@@ -386,6 +552,7 @@
         factoradic: factoradic,
         cartesianProduct: cartesianProduct,
         combination: combination,
+        bigCombination: bigCombination,
         permutation: permutation,
         permutationCombination: permutationCombination,
         power: power,
