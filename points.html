@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>three.js webgl - interactive particles</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<style>
+			body {
+				color: #ffffff;
+				background-color: #000000;
+				margin: 0px;
+				overflow: hidden;
+			}
+		</style>
+	</head>
+
+	<body>
+		<div id="container"></div>
+      	<script src="combinations.js"></script>
+
+		<script src="three.js"></script>
+      	<script src="dat.gui.js"></script>
+
+		<script src="Detector.js"></script>
+		<script src="stats.min.js"></script>
+		<script src="coplanar.js"></script>
+
+		<script type="x-shader/x-vertex" id="vertexshader">
+
+			attribute float size;
+			attribute vec3 customColor;
+
+			varying vec3 vColor;
+
+			void main() {
+
+				vColor = customColor;
+
+				vec4 mvPosition = modelViewMatrix * vec4( position, 1.0 );
+
+				gl_PointSize = size;// * ( 300.0 / -mvPosition.z);
+
+				gl_Position = projectionMatrix * mvPosition;
+
+			}
+
+		</script>
+
+		<script type="x-shader/x-fragment" id="fragmentshader">
+
+			// uniform vec3 color;
+			// uniform sampler2D texture;
+
+			varying vec3 vColor;
+
+			void main() {
+
+				// gl_FragColor = vec4( color * vColor, 1.0 );
+
+				gl_FragColor = vec4( vColor, 1.0 ); //gl_FragColor * texture2D( texture, gl_PointCoord );
+
+				// if ( gl_FragColor.a < ALPHATEST ) discard;
+
+			}
+
+		</script>
+
+
+		<script>
+
+			if ( ! Detector.webgl ) Detector.addGetWebGLMessage();
+
+			var renderer, scene, camera, stats;
+
+			var particles, uniforms;
+
+			var PARTICLE_SIZE = 20;
+			var n = 13;
+
+			var raycaster, intersects;
+			var mouse, INTERSECTED;
+			var mouseDown = false;
+			var axisgroup;
+
+			var targetRotationX = -0.1;
+			var targetRotationOnMouseDownX = 0;
+
+			var targetRotationY = 0.25;
+			var targetRotationOnMouseDownY = 0;
+
+			var mouseX = 0;
+			var mouseXOnMouseDown = 0;
+
+			var mouseY = 0;
+			var mouseYOnMouseDown = 0;
+			var windowHalfX = window.innerWidth / 2;
+			var windowHalfY = window.innerHeight / 2;
+			var material;
+			var geometry;
+
+			var gui = new dat.GUI({
+			    height : 1 * 32 - 1
+			});
+			var params = {
+			    size: n,
+			    solution: '0',
+			    moves: ''
+			};
+
+			gui.add(params, 'size').min(2).max(97).step(1).name('N').onFinishChange(function(value) {
+			    value = parseInt(value);
+			    if (value > 97)
+			        return;
+			  	buildGeometry(geometry);
+			});
+
+			// gui.add(params, 'run').name('Search');
+			// gui.add(params, 'stop').name('Stop');
+			// gui.add(params, 'entry').name('Print Entry');
+			gui.add(params, 'solution').name('Solution Size');
+			gui.add(params, 'moves').name('Valid Moves');
+			// gui.add(params, 'submitEntry').name('View Entry');
+
+			init();
+			animate();
+
+			function init() {
+
+				container = document.getElementById( 'container' );
+
+				scene = new THREE.Scene();
+
+				camera = new THREE.PerspectiveCamera( 90, window.innerWidth / window.innerHeight, 1, 1000000 );
+				camera.position.z = 150;
+
+
+				geometry = buildGeometry(new THREE.BufferGeometry())
+
+				//
+				console.log("Creating ShaderMaterial");
+				material = new THREE.ShaderMaterial( {
+
+					// uniforms: {
+					// 	color:   { type: "c", value: new THREE.Color( 0xffffff ) },
+					// 	texture: { type: "t", value: new THREE.TextureLoader().load( "disc.png" ) }
+					// },
+					vertexShader: document.getElementById( 'vertexshader' ).textContent,
+					fragmentShader: document.getElementById( 'fragmentshader' ).textContent,
+
+					alphaTest: 0.9,
+
+				} );
+
+
+				//
+				console.log("Creating Points");
+				particles = new THREE.Points( geometry, material );
+
+
+				axisgroup = new THREE.Object3D();
+				axisgroup.add(particles);
+				scene.add( axisgroup );
+		         
+		        //load mesh 
+		        // var loader = new THREE.JSONLoader();
+		        // loader.load('models/cube.js', modelLoadedCallback);
+
+		        var axisHelper = new THREE.AxisHelper(6000);
+		        axisHelper.rotation.x = Math.PI/2;
+		        // axisHelper.rotation.z = Math.PI/2;
+		        var axisHelper2 = new THREE.AxisHelper(6000);
+		        axisgroup.add(axisHelper);
+		        axisHelper2.scale.x = -1;
+		        axisHelper2.scale.y = -1;
+		        axisHelper2.scale.z = -1;
+		        axisHelper2.rotation.x = Math.PI/2;
+		        // axisHelper2.rotation.z = Math.PI/2;
+		        axisgroup.add(axisHelper2);
+
+				console.log("Creating WebGLRenderer");
+				renderer = new THREE.WebGLRenderer();
+				renderer.setPixelRatio( window.devicePixelRatio );
+				renderer.setSize( window.innerWidth, window.innerHeight );
+				container.appendChild( renderer.domElement );
+
+				//
+
+				console.log("Creating Raycaster");
+				raycaster = new THREE.Raycaster();
+				raycaster.params.Points.threshold = 0.3;
+				mouse = new THREE.Vector2();
+
+				//
+
+				console.log("Creating Stats");
+				stats = new Stats();
+				stats.domElement.style.position = 'absolute';
+				stats.domElement.style.top = '0px';
+				container.appendChild( stats.domElement );
+
+				//
+
+				console.log("Creating events");
+				window.addEventListener( 'resize', onWindowResize, false );
+				// document.addEventListener( 'mousemove', onDocumentMouseMove, false );
+		        container.addEventListener( 'mousedown', onDocumentMouseDown, false );
+		        // container.addEventListener( 'mousemove', onDocumentMouseMove, false );
+		        container.addEventListener( 'mouseup', onDocumentMouseUp, false );
+		        container.addEventListener( 'touchstart', onDocumentTouchStart, false );
+		        container.addEventListener( 'touchmove', onDocumentTouchMove, false );
+		        container.addEventListener( 'mousewheel', onDocumentMouseWheel, false);
+			}
+
+			function buildGeometry(geometry) {
+
+				//
+				// console.log("Building geometry");
+				// var geometry1 = new THREE.BoxGeometry( 300, 300, 300, 300, 300, 300 );
+				// console.log("Getting vertices");
+				// var vertices = geometry1.vertices;
+
+				n = params.size;
+				var size = n*n*n;
+
+				var positions = new Float32Array( size * 3 );
+				var colors = new Float32Array( size * 3 );
+				var sizes = new Float32Array( size );
+
+				// console.log("Generating vertices")
+
+				var j = 0;
+				var k = 1;
+				var l = 2;
+				var color = new THREE.Color();
+				var spacing = 2;
+				var startPos = -(n-1)/2 * spacing;
+				var endPos = startPos + n * spacing;
+				var x = startPos;
+				var y = startPos;
+				var z = startPos;
+
+
+				// console.log("Start To End", startPos, endPos, n);
+
+				for ( var i = 0; true; i ++ ) {
+
+					positions[j] = x;
+					positions[k] = y;
+					positions[l] = z;
+					// console.log("XYZ",x,y,z)
+
+					// color.setHSL( Math.sin(x/n), Math.sin(y/n) * 0.5 + 0.5, Math.sin(z/n) * 0.5 + 0.5); //0.01 + 0.1 * ( i / l ), 1.0, 0.5 );
+
+					color.setRGB( 0, 0.8, 0);
+					color.toArray( colors, i * 3 );
+
+					sizes[ i ] = PARTICLE_SIZE * 0.5;
+
+					j += 3;
+					k += 3;
+					l += 3;
+
+					x+=spacing;
+					if (x >= endPos) {
+						x = startPos;
+						y+=spacing;
+						if (y >= endPos) {
+							y = startPos;
+							z+=spacing;
+							if (z >= endPos) {
+								// console.log("Shouldn't get here :(", i, size);
+								break;
+							}
+						}
+					}
+
+				}
+
+				// console.log("XYZ",x,y,z);
+
+				// console.log("Creating BufferGeometry");
+
+				// console.log("Set position");
+				geometry.addAttribute( 'position', new THREE.BufferAttribute( positions, 3 ) );
+				// console.log("Set customColor");
+				geometry.addAttribute( 'customColor', new THREE.BufferAttribute( colors, 3 ) );
+				// console.log("Set size")
+				geometry.addAttribute( 'size', new THREE.BufferAttribute( sizes, 1 ) );
+
+				return geometry;
+
+			}
+
+			function onDocumentMouseWheel( event) {
+			    camera.position.z += (camera.position.z / 10) * (event.deltaY / 100);
+			}
+
+			function onDocumentMouseDown( event ) {
+
+			    event.preventDefault();
+
+
+			    container.addEventListener( 'mousemove', onDocumentMouseMove, false );
+			    container.addEventListener( 'mouseup', onDocumentMouseUp, false );
+			    container.addEventListener( 'mouseout', onDocumentMouseOut, false );
+
+			    mouseXOnMouseDown = event.clientX - windowHalfX;
+			    targetRotationOnMouseDownX = targetRotationX;
+			    
+			    mouseYOnMouseDown = event.clientY - windowHalfY;
+			    targetRotationOnMouseDownY = targetRotationY;
+			    mouseDown = true;
+
+			}			
+
+			function onDocumentMouseMove( event ) {
+
+				event.preventDefault();
+
+				mouse.x = ( event.clientX / window.innerWidth ) * 2 - 1;
+				mouse.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
+
+			    if (mouseDown) {
+			        mouseX = event.clientX - windowHalfX;
+			        mouseY = event.clientY - windowHalfY;
+
+
+			        targetRotationY = targetRotationOnMouseDownY + (mouseY - mouseYOnMouseDown) * 0.02;
+			        targetRotationX = targetRotationOnMouseDownX + (mouseX - mouseXOnMouseDown) * 0.02;
+			    }
+
+			}
+
+
+			function onDocumentMouseUp( event ) {
+			    mouseDown = false;
+
+			    container.removeEventListener( 'mousemove', onDocumentMouseMove, false );
+			    container.removeEventListener( 'mouseup', onDocumentMouseUp, false );
+			    container.removeEventListener( 'mouseout', onDocumentMouseOut, false );
+
+
+			    mouseX = event.clientX - windowHalfX;
+			    mouseY = event.clientY - windowHalfY;
+
+			    // console.log("mouse up", mouseX, mouseY, mouseXOnMouseDown, mouseYOnMouseDown, targetList);
+
+			    // Click with drag so don't interact
+			    if (mouseX != mouseXOnMouseDown && mouseY != mouseYOnMouseDown) {
+			        // console.log("Dragged, not clicked");
+			        return;
+			    }
+
+			    mouse.x = ( ( event.clientX - renderer.domElement.offsetLeft ) / renderer.domElement.width ) * 2 - 1;
+			    mouse.y = - ( ( event.clientY - renderer.domElement.offsetTop ) / renderer.domElement.height ) * 2 + 1;
+
+			    raycaster.setFromCamera(mouse, camera);
+
+			    // create an array containing all objects in the scene with which the ray intersects
+			    var intersects = raycaster.intersectObject( particles );
+			    
+			    // if there is one (or more) intersections
+			    if ( intersects.length > 0 )
+			    {
+					var attributes = geometry.attributes;
+					var colors = attributes.customColor;
+					var positions = attributes.position.array;
+			    	var hit = intersects[0];
+			    	console.log("Index:", hit.index);
+			    	console.log("Particle:",  positions[hit.index * 3], positions[hit.index * 3 + 1], positions[hit.index * 3 + 2]);
+
+			    	
+					colors.setXYZ(hit.index, 0.8, 0, 0);
+					colors.needsUpdate = true;
+			        // toggleVertex(intersects[0].object)
+
+			        // updateCalculations();
+
+			    }
+
+			}
+
+			function onDocumentMouseOut( event ) {
+
+			    container.removeEventListener( 'mousemove', onDocumentMouseMove, false );
+			    container.removeEventListener( 'mouseup', onDocumentMouseUp, false );
+			    container.removeEventListener( 'mouseout', onDocumentMouseOut, false );
+
+			}
+
+			function onDocumentTouchStart( event ) {
+
+			    if ( event.touches.length == 1 ) {
+
+			        event.preventDefault();
+
+			        mouseXOnMouseDown = event.touches[ 0 ].pageX - windowHalfX;
+			        targetRotationOnMouseDownX = targetRotationX;
+			        
+			        mouseYOnMouseDown = event.touches[ 0 ].pageY - windowHalfY;
+			        targetRotationOnMouseDownY = targetRotationY;
+			            
+			            
+
+			    }
+
+			}
+
+			function onDocumentTouchMove( event ) {
+
+			    if ( event.touches.length == 1 ) {
+
+			        event.preventDefault();
+
+			        mouseX = event.touches[ 0 ].pageX - windowHalfX;
+			        targetRotationX = targetRotationOnMouseDownX + ( mouseX - mouseXOnMouseDown ) * 0.05;
+			        
+			        mouseY = event.touches[ 0 ].pageY - windowHalfY;
+			        targetRotationY = targetRotationOnMouseDownY + (mouseY - mouseYOnMouseDown) * 0.05;
+
+			    }
+
+			}			
+
+			function onWindowResize() {
+
+			    windowHalfX = window.innerWidth / 2;
+			    windowHalfY = window.innerHeight / 2;
+
+				camera.aspect = window.innerWidth / window.innerHeight;
+				camera.updateProjectionMatrix();
+
+				renderer.setSize( window.innerWidth, window.innerHeight );
+
+			}
+
+			function animate() {
+
+				requestAnimationFrame( animate );
+
+				render();
+				stats.update();
+
+			}
+
+			function render() {
+
+				// particles.rotation.x += 0.0005;
+				// particles.rotation.y += 0.01;
+
+				// var geometry = particles.geometry;
+				// var attributes = geometry.attributes;
+
+				// raycaster.setFromCamera( mouse, camera );
+
+				// intersects = raycaster.intersectObject( particles );
+
+				// if ( intersects.length > 0 ) {
+
+				// 	if ( INTERSECTED != intersects[ 0 ].index ) {
+
+				// 		attributes.size.array[ INTERSECTED ] = PARTICLE_SIZE;
+
+				// 		INTERSECTED = intersects[ 0 ].index;
+
+				// 		attributes.size.array[ INTERSECTED ] = PARTICLE_SIZE * 1.25;
+				// 		attributes.size.needsUpdate = true;
+
+				// 	}
+
+				// } else if ( INTERSECTED !== null ) {
+
+				// 	attributes.size.array[ INTERSECTED ] = PARTICLE_SIZE;
+				// 	attributes.size.needsUpdate = true;
+				// 	INTERSECTED = null;
+
+				// }
+
+
+			    //horizontal rotation   
+			    axisgroup.rotation.y += ( targetRotationX - axisgroup.rotation.y ) * 0.1;
+
+			    //vertical rotation 
+			    finalRotationY = (targetRotationY - axisgroup.rotation.x); 
+
+			     
+			    if (axisgroup.rotation.x <= 1 && axisgroup.rotation.x >= -1) {
+
+			        axisgroup.rotation.x += finalRotationY * 0.1;
+			    }
+			    if (axisgroup.rotation.x > 1) {
+
+			        axisgroup.rotation.x = 1;
+			    }
+			    else if (axisgroup.rotation.x < -1) {
+
+			        axisgroup.rotation.x = -1;
+			    }
+
+
+			    // gridgroup.rotation.y = axisgroup.rotation.y;
+			    // connectorgroup.rotation.y = axisgroup.rotation.y;
+			    // gridgroup.rotation.x = axisgroup.rotation.x;
+			    // connectorgroup.rotation.x = axisgroup.rotation.x;
+
+				renderer.render( scene, camera );
+
+			}
+
+		</script>
+
+	</body>
+
+</html>
