@@ -294,15 +294,6 @@ function drawGrid(size) {
 
 }
 
-function closeTo(a, b, wiggle) {
-    if (Math.abs(a.x - b.x) > wiggle)
-        return false;
-    if (Math.abs(a.y - b.y) > wiggle)
-        return false;
-    if (Math.abs(a.z - b.z) > wiggle)
-        return false;
-}
-
 function round(v) {
     return Math.round(v * 100) / 100;
 }
@@ -390,7 +381,7 @@ function displayEntry(entry) {
 function updateCalculations() {
 
     var selected = targetList.filter(function(o) {
-
+        o.visible = true;
         o.scale.x = normalScale;
         o.scale.y = normalScale;
         o.scale.z = normalScale;
@@ -472,6 +463,7 @@ function highlightInvalidPoints(selected) {
                 p4.scale.x = badScale;
                 p4.scale.y = badScale;
                 p4.scale.z = badScale;
+                p4.visible = false;
                 count++;
             }
             // p4.scale.x = 2;

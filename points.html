@@ -19,6 +19,7 @@
       	<script src="combinations.js"></script>
 
 		<script src="three.js"></script>
+		<script src="GPUPicker.js"></script>
       	<script src="dat.gui.js"></script>
 		<script src="OrbitControls.js"></script>
 
@@ -28,8 +29,10 @@
 
 		<script type="x-shader/x-vertex" id="vertexshader">
 
-			attribute float size;
 			attribute vec3 customColor;
+
+			uniform float size;
+			uniform float scale;
 
 			varying vec3 vColor;
 
@@ -39,7 +42,7 @@
 
 				vec4 mvPosition = modelViewMatrix * vec4( position, 1.0 );
 
-				gl_PointSize = size * ( 300.0 / -mvPosition.z);
+				gl_PointSize = size * ( scale / length( mvPosition.xyz ) );
 
 				gl_Position = projectionMatrix * mvPosition;
 
@@ -74,16 +77,19 @@
 			var renderer, scene, camera, stats;
 
 			var particles, uniforms;
+			var colors;
 
 			var PARTICLE_SIZE = 5;
-			var n = 13;
+			var n = 2;
 
-			var raycaster, intersects;
+			var raycaster, intersects, gpuPicker, pickerMouse;
 			var mouse, INTERSECTED;
 			var mouseDown = false;
 			var axisgroup;
 			var axisHelper;
 	        var axisHelper2;
+
+	        var debug = false;
 
 			var mouseX = 0;
 			var mouseXOnMouseDown = 0;
@@ -97,6 +103,7 @@
 			var geometry;
 			var index = [];
 			var selected = [];
+			var names = [];
 			var controls;
 
 			var gui = new dat.GUI({
@@ -112,7 +119,9 @@
 			    value = parseInt(value);
 			    if (value > 97)
 			        return;
-			  	buildGeometry(geometry, index, selected);
+			  	buildGeometry(geometry, index, selected, names);
+			  	colors = geometry.getAttribute('customColor');
+			  	gpuPicker.setScene(scene);
 			});
 
 			// gui.add(params, 'run').name('Search');
@@ -121,6 +130,14 @@
 			gui.add(params, 'solution').name('Solution Size');
 			gui.add(params, 'moves').name('Valid Moves');
 			// gui.add(params, 'submitEntry').name('View Entry');
+
+			function updateGUI() {
+			      // Iterate over all controllers
+			      for (var i in gui.__controllers) {
+			        gui.__controllers[i].updateDisplay();
+			      }
+
+			}
 
 			init();
 			animate();
@@ -131,14 +148,15 @@
 
 				scene = new THREE.Scene();
 
-				camera = new THREE.PerspectiveCamera( 90, window.innerWidth / window.innerHeight, 1, 1000000 );
+				camera = new THREE.PerspectiveCamera( 90, window.innerWidth / window.innerHeight, 1, 10000 );
 				camera.position.z = 150;
 				camera.position.x = 10;
 				camera.position.y = 10;
 				camera.lookAt(new THREE.Vector3(0, 0, 0));
 
 
-				geometry = buildGeometry(new THREE.BufferGeometry(), index, selected)
+				geometry = buildGeometry(new THREE.BufferGeometry(), index, selected, names);
+				colors = geometry.getAttribute('customColor');
 
 				//
 				console.log("Creating ShaderMaterial");
@@ -148,6 +166,16 @@
 					// 	color:   { type: "c", value: new THREE.Color( 0xffffff ) },
 					// 	texture: { type: "t", value: new THREE.TextureLoader().load( "disc.png" ) }
 					// },
+					uniforms: {
+						size: {
+							type: "f",
+							value: 2,
+						},
+						scale: {
+							type: "f",
+							value: 400,
+						}
+					},
 					vertexShader: document.getElementById( 'vertexshader' ).textContent,
 					fragmentShader: document.getElementById( 'fragmentshader' ).textContent,
 
@@ -159,11 +187,18 @@
 				//
 				console.log("Creating Points");
 				particles = new THREE.Points( geometry, material );
+				particles.name = "particles";
+
 
 
 				axisgroup = new THREE.Object3D();
 				axisgroup.add(particles);
 				scene.add( axisgroup );
+
+				// var geometry = new THREE.SphereGeometry( 5, 32, 32 );
+				// var material = new THREE.MeshBasicMaterial( {color: 0xffff00} );
+				// var sphere = new THREE.Mesh( geometry, material );
+				// scene.add( sphere );
 		         
 		        //load mesh 
 		        // var loader = new THREE.JSONLoader();
@@ -209,8 +244,13 @@
 				//
 
 				raycaster = new THREE.Raycaster();
-				raycaster.params.Points.threshold = 0.5;
+				// raycaster.params.Points.threshold = 0.5;
 				mouse = new THREE.Vector2();
+				pickerMouse = new THREE.Vector2();
+				gpuPicker = new THREE.GPUPicker({renderer:renderer, debug: true});
+				gpuPicker.setFilter(function (object) {return object.name == "particles";});
+				gpuPicker.setScene(scene);
+				gpuPicker.setCamera(camera);
 
 				//
 
@@ -225,12 +265,23 @@
 		        container.addEventListener( 'mouseup', onDocumentMouseUp, false );
 			}
 
+
+			document.addEventListener('keyup', function(e) {
+			    if (e.keyCode == 27)
+			        clearAll();
+
+			    if (e.keyCode == 68)
+			    	debug = !debug;
+
+			});
+
 			function onOrbitChange(event) {
 				axisHelper.position.copy(controls.target);
 				axisHelper2.position.copy(controls.target);
+				gpuPicker.needUpdate = true;
 			}
 
-			function buildGeometry(geometry, index, selected) {
+			function buildGeometry(geometry, index, selected, names) {
 
 				//
 				// console.log("Building geometry");
@@ -243,6 +294,7 @@
 
 				index.length = size;
 				selected.length = 0;
+				names.length = 0;
 
 				var positions = new Float32Array( size * 3 );
 				var colors = new Float32Array( size * 3 );
@@ -255,8 +307,9 @@
 				var l = 2;
 				var color = new THREE.Color();
 				var spacing = n * 2;
-				var startPos = -(n-1)/2 * spacing;
-				var endPos = startPos + n * spacing;
+				var startPos = 0;
+				var offset = -(n-1)/2 * spacing;
+				var endPos = startPos + n;
 				var x = startPos;
 				var y = startPos;
 				var z = startPos;
@@ -266,10 +319,12 @@
 
 				for ( var i = 0; true; i ++ ) {
 
-					positions[j] = x;
-					positions[k] = y;
-					positions[l] = z;
+					positions[j] = x * spacing + offset;
+					positions[l] = y * spacing + offset;
+					positions[k] = z * spacing + offset;
 					// console.log("XYZ",x,y,z)
+
+					names[i] = xyzStr(x, n-y-1, z);
 
 					index[i] = 0;
 
@@ -284,13 +339,13 @@
 					k += 3;
 					l += 3;
 
-					x+=spacing;
+					x+=1;
 					if (x >= endPos) {
 						x = startPos;
-						y+=spacing;
+						y+=1;
 						if (y >= endPos) {
 							y = startPos;
-							z+=spacing;
+							z+=1;
 							if (z >= endPos) {
 								// console.log("Shouldn't get here :(", i, size);
 								break;
@@ -311,6 +366,8 @@
 				// console.log("Set size")
 				geometry.addAttribute( 'size', new THREE.BufferAttribute( sizes, 1 ) );
 
+				delete geometry.__pickingGeometry;
+
 				return geometry;
 
 			}
@@ -318,29 +375,33 @@
 
 			function onDocumentMouseUp( event ) {
 
+				if (event.button !== 0)
+					return;
+
 			    mouse.x = ( ( event.clientX - renderer.domElement.offsetLeft ) / renderer.domElement.width ) * 2 - 1;
 			    mouse.y = - ( ( event.clientY - renderer.domElement.offsetTop ) / renderer.domElement.height ) * 2 + 1;
+
+			    pickerMouse.x = event.clientX;
+			    pickerMouse.y = event.clientY;
 
 			    raycaster.setFromCamera(mouse, camera);
 
 			    // create an array containing all objects in the scene with which the ray intersects
-			    var intersects = raycaster.intersectObject( particles );
+			    // var intersects = raycaster.intersectObject( particles );
+
+			    var intersect = gpuPicker.pick(pickerMouse, raycaster);
 			    
+			    // console.log("I", intersect);
 			    // if there is one (or more) intersections
-			    if ( intersects.length > 0 )
+			    if ( intersect )
 			    {
 					var attributes = geometry.attributes;
 					var colors = attributes.customColor;
 					var positions = attributes.position.array;
-			    	var hit = intersects[0];
-			    	console.log("Index:", hit.index);
-			    	console.log("Particle:",  positions[hit.index * 3], positions[hit.index * 3 + 1], positions[hit.index * 3 + 2]);
+			    	console.log("Index:", intersect.index);
+			    	console.log("Particle:",  positions[intersect.index * 3], positions[intersect.index * 3 + 1], positions[intersect.index * 3 + 2]);
 
-			    	if (toggle(hit.index)) {
-						colors.setXYZ(hit.index, 0, 0.8, 0);
-			    	} else {
-						colors.setXYZ(hit.index, 0.8, 0, 0);
-					}
+					toggle(intersect.index);
 					colors.needsUpdate = true;
 			        // toggleVertex(intersects[0].object)
 
@@ -351,18 +412,47 @@
 			}
 
 			function toggle(i) {
-				if (index[i] == 0) {
-					index[i] = 1;
-					selected.push(i);
-					return true;
+				if (isVertexSelected(i)) {
+					clearVertex(i);
 				} else {
-					index[i] = 0;
-					var pos = selected.indexOf(i);
-					if (pos != -1)
-						selected.splice(pos, 1);
-					return false;
+					selectVertex(i);
 				}
-			}			
+			}
+
+			function isVertexSelected(i) {
+				return index[i] == 1;
+			}
+
+			function selectVertex(i) {
+				index[i] = 1;
+				colors.setXYZ(i, 0.8, 0, 0);
+				selected.push(i);
+			}
+
+			function clearVertex(i) {
+				index[i] = 0;
+				colors.setXYZ(i, 0, 0.8, 0);
+				var pos = selected.indexOf(i);
+				if (pos != -1)
+					selected.splice(pos, 1);
+
+			}
+
+			function clearAll() {
+			    // selected.forEach(function (i) {
+			    // 	console.log("Clearing", i);
+			    //     clearVertex(i);
+			    // });
+			    for (var i = selected.length - 1; i >= 0; i--) {
+			    	clearVertex(selected[i]);
+			    }
+			    colors.needsUpdate = true;
+			    console.log("Cleared vertices");
+			}
+
+			function getSelected() {
+				return selected;
+			}
 
 			function onWindowResize() {
 
@@ -373,6 +463,7 @@
 				camera.updateProjectionMatrix();
 
 				renderer.setSize( window.innerWidth, window.innerHeight );
+				gpuPicker.resizeTexture( window.innerWidth, window.innerHeight );
 
 			}
 
@@ -446,7 +537,7 @@
 			    // gridgroup.rotation.x = axisgroup.rotation.x;
 			    // connectorgroup.rotation.x = axisgroup.rotation.x;
 
-				renderer.render( scene, camera );
+				renderer.render( debug?gpuPicker.pickingScene:scene, camera );
 
 			}
 
