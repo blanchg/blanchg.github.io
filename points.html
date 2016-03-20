@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" id="html">
 	<head>
 		<title>three.js webgl - interactive particles</title>
 		<meta charset="utf-8">
@@ -10,11 +10,16 @@
 				background-color: #000000;
 				margin: 0px;
 				overflow: hidden;
+				cursor: auto;
+			}
+
+			body.thinking * {
+				cursor: wait;
 			}
 		</style>
 	</head>
 
-	<body>
+	<body id="body">
 		<div id="container"></div>
       	<script src="combinations.js"></script>
 
@@ -144,7 +149,10 @@
 			      for (var i in gui.__controllers) {
 			        gui.__controllers[i].updateDisplay();
 			      }
-
+			      var body = document.getElementById('body');
+			      body.scrollLeft = 100;
+			      body.className = params.thinking?'thinking':'';
+			      body.scrollLeft = -100;
 			}
 
 			init();

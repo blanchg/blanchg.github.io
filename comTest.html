@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Combinations Test</title>
+	<script type="text/javascript" src="combinations.js"></script>
+</head>
+<body>
+<div id="output"></div>
+<script type="text/javascript">
+function log() {
+	var msg = [];
+	for (var i = 0; i < arguments.length; i++) {
+		msg.push(arguments[i].toString());
+	}
+	var p = document.createElement("p");
+	p.appendChild(document.createTextNode(msg.join(" ")));
+	document.getElementById("output").appendChild(p);
+}
+
+// log("Testing for correctness");
+var correct = true;
+var b = null;
+var b2 = null;
+var testInput = [1,2,3,4];
+var ways = testInput.length-1;
+var c = Combinatorics.combination(testInput, ways);
+var c2 = Combinatorics.bigCombination(testInput, ways);
+while ((b = c.next()) && (b2 = c2.next())) {
+    if (b.join("") != b2.join("")) {
+        log("Error:",b.join(""), b2.join(""));
+        correct = false;
+    }
+}
+
+if (!correct)
+	log("Changes have caused a failure");
+else
+	log("Changes are ok!");
+
+
+setTimeout(runTest, 1000);
+
+function runTest() {
+	testInput = [];
+	for (var i = 0; i < 30; i++) {
+		testInput[i] = i;
+	}
+	ways = 3;
+
+	var runs = 100;
+	var con = 0;
+	var calc = 0;
+	var con2 = 0;
+	var calc2 = 0;
+	for (var run = 0; run < runs; run++) {
+		var t = performance.now();
+		c = Combinatorics.combination(testInput, ways);
+		con += performance.now() - t;
+
+		t = performance.now();
+		while(b = c.next()) {
+			// console.log(b);
+			// b[0];
+		}
+		calc += performance.now() - t;
+
+		var t2 = performance.now();
+		c2 = Combinatorics.bigCombination(testInput, ways);
+		con2 += performance.now() - t2;
+
+		t2 = performance.now();
+		while(b2 = c2.next()) {
+			// console.log(b2);
+			// b2[0];
+		}
+		calc2 += performance.now() - t2;
+		
+	}
+	con = con / runs;
+	calc = calc / runs;
+	con2 = con2 / runs;
+	calc2 = calc2 / runs;
+
+	log("After",runs,"runs");
+	log("Original Constructor", con, "ms");
+	log("New Constructor", con2, "ms");
+	log("Original Loop", calc, "ms");
+	log("New Loop", calc2, "ms");
+	log("Percentage", Math.round((calc2/calc)*100)/100, "x");
+}
+
+document.addEventListener("mouseup", docMouseUp);
+function docMouseUp(e) {
+	if (e.button != 1)
+		return;
+
+	c2 = Combinatorics.bigCombination(testInput, ways);
+	while(b2 = c2.next()) {
+	}
+
+}
+</script>
+</body>
+</html>

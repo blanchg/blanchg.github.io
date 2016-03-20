@@ -150,7 +150,6 @@
             valueOf: sizeOf,
             init: function() {
                 this.index = first;
-            // console.log("I", this.index.toString(2));
             },
             next: function() {
                 if (this.index >= maxIndex) return;
@@ -158,13 +157,10 @@
                     n = this.index,
                     result = [];
                 for (; n; n >>>= 1, i++) {
-                    // console.log("n", i, n.toString(2));
-                    if (n & 1) result.push(this[i]);
+                    if (n & 1) result[result.length] = this[i];
                 }
 
-                // console.log("I", result, this.index.toString(2));
                 this.index = nextIndex(this.index);
-                // console.log("NI", this.index.toString(2));
                 return result;
             }
         });
@@ -175,7 +171,7 @@
     /* bigcombination */
     var bigNextIndex = function(n, nelem) {
 
-        var result = n.concat();
+        var result = n;//.concat();
         var j = nelem;
         var i = 0;
         for (i = result.length - 1; i >= 0; i--) {
@@ -224,9 +220,6 @@
 
         return result;
 
-        // Add 1 and keep the first nelem 1's only set rest to zero
-        // if it overflows set the first nelem-1 values to 1 
-
     };
     var buildFirst = function(nelem) {
         var result = [];
@@ -236,26 +229,6 @@
         result[0] = 1;
         return result;
     };
-    var shiftRight = function(n, j) {
-        // console.log("ShiftRight", n.join(""),j)
-        n = n.concat();
-        for (var i = j; i < n.length; i++) {
-            n[i-j] = n[i];
-        }
-        for (var i = n.length - j; i < n.length; i++) {
-            n[i] = 0;
-        }
-        // console.log("n", n.join(""))
-        n.length = n.length - j;
-        return n;
-    };
-    var truish = function(n) {
-        for (var i = n.length - 1; i >= 0; i--) {
-            if (n[i] !== 0)
-                return true;
-        }
-        return false;
-    }
     var bigCombination = function(ary, nelem, fun) {
         if (!nelem) nelem = ary.length;
         if (nelem < 1) throw new RangeError;
@@ -281,19 +254,13 @@
                 // console.log("next", this.index.length, maxIndex);
                 if (this.index.length > maxIndex) return;
                 var i = 0,
-                    n = this.index.concat(),
+                    n = this.index,
                     result = [];
-                for (; truish(n); n = shiftRight(n, 1), i++) {
-                    // console.log("n", i, n.join(""));
-                    if (n[0] & 1) result.push(this[i]);
+                for (var j = 0; j < n.length; j++, i++) {
+                    if (n[j])
+                        result[result.length] = this[i];
                 }
-                // console.log("I", result, this.index.concat().reverse().join(""));
-                this.index = bigNextIndex(this.index, nelem);
-                // console.log("NI", this.index.join(""));
-                // console.log("i", this.nelemI)
-                this.nelemI--;
-                if (this.nelemI <= 0)
-                    this.nelemI = nelem;
+                bigNextIndex(this.index, nelem);
                 return result;
             }
         });
