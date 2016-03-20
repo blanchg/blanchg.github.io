@@ -297,7 +297,7 @@ var THREE = THREE || {};
 	};
 	THREE.GPUPicker.prototype.setScene = function(scene) {
 		this.pickingScene = scene.clone();
-		this._processObject(this.pickingScene, 0);
+		this._processObject(this.pickingScene, 1);
 		this.needUpdate = true;
 	};
 
@@ -310,7 +310,7 @@ var THREE = THREE || {};
 		// get object with this id in range
 		// var object = this._getObject(id);
 		if (this.debug) console.log("pick id:",id);
-		var result = this._getObject(this.pickingScene, 0, id);
+		var result = this._getObject(this.pickingScene, 1, id);
 		var object = result[1];
 		var elementId = id - result[0];
 		if (object) {

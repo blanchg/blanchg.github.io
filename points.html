@@ -78,9 +78,13 @@
 
 			var particles, uniforms;
 			var colors;
+			var positions;
 
 			var PARTICLE_SIZE = 5;
-			var n = 2;
+			var n = 3;
+			var size = n*n*n;
+			var spacing = n * 2;
+			var offset = -(n-1)/2 * spacing;
 
 			var raycaster, intersects, gpuPicker, pickerMouse;
 			var mouse, INTERSECTED;
@@ -121,6 +125,7 @@
 			        return;
 			  	buildGeometry(geometry, index, selected, names);
 			  	colors = geometry.getAttribute('customColor');
+				positions = geometry.getAttribute('position');
 			  	gpuPicker.setScene(scene);
 			});
 
@@ -148,7 +153,7 @@
 
 				scene = new THREE.Scene();
 
-				camera = new THREE.PerspectiveCamera( 90, window.innerWidth / window.innerHeight, 1, 10000 );
+				camera = new THREE.PerspectiveCamera( 45, window.innerWidth / window.innerHeight, 1, 10000 );
 				camera.position.z = 150;
 				camera.position.x = 10;
 				camera.position.y = 10;
@@ -157,6 +162,7 @@
 
 				geometry = buildGeometry(new THREE.BufferGeometry(), index, selected, names);
 				colors = geometry.getAttribute('customColor');
+				positions = geometry.getAttribute('position');
 
 				//
 				console.log("Creating ShaderMaterial");
@@ -290,7 +296,9 @@
 				// var vertices = geometry1.vertices;
 
 				n = params.size;
-				var size = n*n*n;
+				size = n*n*n;
+				spacing = 10;
+				offset = -(n-1)/2 * spacing;
 
 				index.length = size;
 				selected.length = 0;
@@ -298,7 +306,7 @@
 
 				var positions = new Float32Array( size * 3 );
 				var colors = new Float32Array( size * 3 );
-				var sizes = new Float32Array( size );
+				// var sizes = new Float32Array( size );
 
 				// console.log("Generating vertices")
 
@@ -306,9 +314,7 @@
 				var k = 1;
 				var l = 2;
 				var color = new THREE.Color();
-				var spacing = n * 2;
 				var startPos = 0;
-				var offset = -(n-1)/2 * spacing;
 				var endPos = startPos + n;
 				var x = startPos;
 				var y = startPos;
@@ -333,7 +339,7 @@
 					// color.setRGB( 0, 0.8, 0);
 					color.toArray( colors, i * 3 );
 
-					sizes[ i ] = PARTICLE_SIZE * 0.5;
+					// sizes[ i ] = PARTICLE_SIZE * 0.5;
 
 					j += 3;
 					k += 3;
@@ -364,7 +370,7 @@
 				// console.log("Set customColor");
 				geometry.addAttribute( 'customColor', new THREE.BufferAttribute( colors, 3 ) );
 				// console.log("Set size")
-				geometry.addAttribute( 'size', new THREE.BufferAttribute( sizes, 1 ) );
+				// geometry.addAttribute( 'size', new THREE.BufferAttribute( sizes, 1 ) );
 
 				delete geometry.__pickingGeometry;
 
@@ -396,8 +402,8 @@
 			    if ( intersect )
 			    {
 					var attributes = geometry.attributes;
-					var colors = attributes.customColor;
-					var positions = attributes.position.array;
+					// var colors = attributes.customColor;
+					// var positions = attributes.position.array;
 			    	console.log("Index:", intersect.index);
 			    	console.log("Particle:",  positions[intersect.index * 3], positions[intersect.index * 3 + 1], positions[intersect.index * 3 + 2]);
 
@@ -405,7 +411,7 @@
 					colors.needsUpdate = true;
 			        // toggleVertex(intersects[0].object)
 
-			        // updateCalculations();
+			        updateCalculations();
 
 			    }
 
@@ -420,22 +426,55 @@
 			}
 
 			function isVertexSelected(i) {
-				return index[i] == 1;
+				return index[i] !== 0;
 			}
 
 			function selectVertex(i) {
 				index[i] = 1;
-				colors.setXYZ(i, 0.8, 0, 0);
+				setColor(i);
 				selected.push(i);
 			}
 
 			function clearVertex(i) {
 				index[i] = 0;
-				colors.setXYZ(i, 0, 0.8, 0);
+				setColor(i);
 				var pos = selected.indexOf(i);
 				if (pos != -1)
 					selected.splice(pos, 1);
+			}
 
+			function getX(i) {
+				return (positions.getX(i) - offset) / spacing;
+			}
+
+			function getY(i) {
+				return (positions.getZ(i) - offset) / spacing;
+			}
+
+			function getZ(i) {
+				return (positions.getY(i) - offset) / spacing;
+			}
+
+			function setColor(i) {
+				var color = new THREE.Color();
+				console.log("Setting color for",i,"case",index[i], getZ(i));
+				switch(index[i]) {
+					case 0: // Not selected
+						color.setHSL( (getZ(i)+1)/(n+2), 0.9, 0.6); //0.01 + 0.1 * ( i / l ), 1.0, 0.5 );
+						// color.toArray( colors, i * 3);
+						console.log(" ",color);
+						colors.setXYZ(i, color.r, color.g, color.b);
+						break;
+					case 1: // Good selection
+						colors.setXYZ(i, 0, 0, 0.8); // Blue
+						break;
+					case 2: // Invalid selection
+						colors.setXYZ(i, 0.1, 0.1, 0.1); // Dark
+						break;
+					case 3: // Bad selection
+						colors.setXYZ(i, 0.8, 0, 0); // Red
+						break;
+				}
 			}
 
 			function clearAll() {
@@ -443,8 +482,8 @@
 			    // 	console.log("Clearing", i);
 			    //     clearVertex(i);
 			    // });
-			    for (var i = selected.length - 1; i >= 0; i--) {
-			    	clearVertex(selected[i]);
+			    for (var i = index.length - 1; i >= 0; i--) {
+			    	clearVertex(i);
 			    }
 			    colors.needsUpdate = true;
 			    console.log("Cleared vertices");
