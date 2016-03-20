@@ -381,7 +381,7 @@
 
 			function onDocumentMouseUp( event ) {
 
-				if (event.button !== 0)
+				if (thinking || event.button !== 0)
 					return;
 
 			    mouse.x = ( ( event.clientX - renderer.domElement.offsetLeft ) / renderer.domElement.width ) * 2 - 1;
@@ -401,13 +401,16 @@
 			    // if there is one (or more) intersections
 			    if ( intersect )
 			    {
-					var attributes = geometry.attributes;
+			    	var i = intersect.index;
+					// var attributes = geometry.attributes;
 					// var colors = attributes.customColor;
 					// var positions = attributes.position.array;
 			    	console.log("Index:", intersect.index);
-			    	console.log("Particle:",  positions[intersect.index * 3], positions[intersect.index * 3 + 1], positions[intersect.index * 3 + 2]);
+			    	console.log("Particle:",  positions.array[i * 3], positions.array[i * 3 + 1], positions.array[i * 3 + 2]);
 
-					toggle(intersect.index);
+			    	console.log("Before:", index[i]);
+					toggle(i);
+			    	console.log("After:", index[i], index);
 					colors.needsUpdate = true;
 			        // toggleVertex(intersects[0].object)
 
@@ -457,12 +460,12 @@
 
 			function setColor(i) {
 				var color = new THREE.Color();
-				console.log("Setting color for",i,"case",index[i], getZ(i));
+				// console.log("Setting color for",i,"case",index[i], getZ(i));
 				switch(index[i]) {
 					case 0: // Not selected
 						color.setHSL( (getZ(i)+1)/(n+2), 0.9, 0.6); //0.01 + 0.1 * ( i / l ), 1.0, 0.5 );
 						// color.toArray( colors, i * 3);
-						console.log(" ",color);
+						// console.log(" ",color);
 						colors.setXYZ(i, color.r, color.g, color.b);
 						break;
 					case 1: // Good selection

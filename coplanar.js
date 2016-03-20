@@ -1,21 +1,31 @@
 
 
+var thinking = false;
 
 var worker = new Worker('coplanarworker.js'); 
 // in main js file
-worker.onmessage = function(e) {  
+worker.onmessage = function(e) {
+
   var data = e.data;
-  if (data.type === 'debug') {
-    console.log(data.value);
-  }
-  else if (data.type === 'result') {
-    // process results
+  if (data.type === 'results') {
+  	console.log("Received results", data.data.index);
+    var newIndex = data.data.index;
+    for (var i = newIndex.length - 1; i >= 0; i--) {
+    	index[i] = newIndex[i];
+    	setColor(i);
+    }
+    params.moves = data.data.moves;
+	colors.needsUpdate = true;
+    updateGUI();
+    thinking = false;
   }
 }
 
-worker.postMessage({
-	data: "hi there"
-});
+// worker.postMessage({
+// 	index: index,
+// 	selected: selected,
+// 	positions: positions
+// });
 
 
 
@@ -92,11 +102,6 @@ function updateCalculations() {
     //         o.material = selectedMaterial;
     //     return o.material === selectedMaterial;
     // });
-    for (var i = index.length-1; i >= 0; i--) {
-    	if (index[i] == 2)
-    		index[i] = 0;
-    	setColor(i);
-    }
 
     // Show connecting lines
     // removeChildren(connectorgroup);
@@ -123,7 +128,14 @@ function updateCalculations() {
     //     connectorgroup.add(object);
     // }
 
-    params.moves = '' + highlightInvalidPoints(selected);
+    // params.moves = '' + highlightInvalidPoints(selected);
+
+    thinking = true;
+    worker.postMessage({
+    	selected: selected, 
+    	index: index, 
+    	positions: positions.array
+    });
 
     if (!isCoplanar(selected, true)) {
         params.solution = '' + selected.length;
@@ -289,7 +301,7 @@ function isCoplanar(selected, updateMaterial) {
         	ab[3]);
         if (d == 0) {
             if (updateMaterial) {
-                ab.forEach(function(o) {
+                ab.forEach(function(i) {
 					colors.setXYZ(i, 0.5, 0, 0);
 					index[i] = 4;
 					setColor(i);
