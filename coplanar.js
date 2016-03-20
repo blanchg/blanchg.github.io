@@ -1,7 +1,4 @@
 
-
-var thinking = false;
-
 var worker = new Worker('coplanarworker.js'); 
 // in main js file
 worker.onmessage = function(e) {
@@ -11,13 +8,15 @@ worker.onmessage = function(e) {
   	console.log("Received results", data.data.index);
     var newIndex = data.data.index;
     for (var i = newIndex.length - 1; i >= 0; i--) {
-    	index[i] = newIndex[i];
-    	setColor(i);
+    	if (index[i] != newIndex[i]) {
+    		index[i] = newIndex[i];
+    		setColor(i);
+    	}
     }
     params.moves = data.data.moves;
 	colors.needsUpdate = true;
+    params.thinking = false;
     updateGUI();
-    thinking = false;
   }
 }
 
@@ -27,6 +26,12 @@ worker.onmessage = function(e) {
 // 	positions: positions
 // });
 
+function gridChanged() {
+    worker.postMessage({
+    	type: 'update',
+    	positions: positions.array
+    });
+}
 
 
 function round(v) {
@@ -52,19 +57,25 @@ function displayEntry(entry) {
     clearAll();
 
     entry = entry.replace(/[ ;]/g,'').slice(1,-1);
+    console.log("Removed semicolon and spaces and start/end brackets");
     var coords = entry.split("),(");
+    console.log("Tried to split the preferred way");
     if (coords.length < 2) {
         coords = entry.split(")(");
+        console.log("Tried to split another way");
     }
+    console.log("Selecting the vertices");
     coords.forEach(function (c) {
         c = "(" + c + ")";
         names.forEach(function (name, i) {
-            if (name == c)
-                selectVertex(i);
+            if (name == c) {
+                index[i] = 1;
+                selected.push(i);//selectVertex(i);
+            }
         });
     });
-
-	colors.needsUpdate = true;
+    console.log("Updating the calculations");
+	// colors.needsUpdate = true;
     updateCalculations();
 }
 
@@ -105,8 +116,8 @@ function updateCalculations() {
 
     // Show connecting lines
     // removeChildren(connectorgroup);
-    if (selected.length < 2)
-        return true;
+    // if (selected.length < 3)
+    //     return true;
     // var cs = combinations(selected, 2);
     // for (var i = 0; i < cs.length; i++) {
     //     var ab = cs[i]
@@ -130,16 +141,17 @@ function updateCalculations() {
 
     // params.moves = '' + highlightInvalidPoints(selected);
 
-    thinking = true;
+    params.thinking = true;
     worker.postMessage({
+    	type: 'results',
     	selected: selected, 
-    	index: index, 
-    	positions: positions.array
+    	index: index
     });
 
-    if (!isCoplanar(selected, true)) {
+    // Assume that only non co planar points can be selected...
+    // if (!isCoplanar(selected, true)) {
         params.solution = '' + selected.length;
-    }
+    // }
     updateGUI();
 
 }

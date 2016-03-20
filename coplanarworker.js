@@ -3,15 +3,24 @@ importScripts('combinations.js');
 //   log: log
 // };
 
+var positions;
+
 // in worker.js
 self.addEventListener('message', function(e) {
-  console.log("Received message", e.data)
-  var result = highlightInvalidPoints(e.data.selected, e.data.index, e.data.positions);
-  console.log("Calculated result", result);
-  self.postMessage({
-    type: 'results',
-    data: result
-  });
+
+  var data = e.data;
+  if (data.type === 'update') {
+    console.log("Positions updated in worker");
+    positions = e.data.positions;
+  }
+  if (data.type === 'results') {
+    var result = highlightInvalidPoints(data.selected, data.index, positions);
+    // console.log("Calculated result", result);
+    self.postMessage({
+      type: 'results',
+      data: result
+    });
+  }
 
 });
 
@@ -19,17 +28,18 @@ console.log("Worker is waiting for messages")
 
 function highlightInvalidPoints(selected, index, positions) {
 
-  if (selected.length < 3)
+
+  // Reset old invalid points
+  for (var i = index.length-1; i >= 0; i--) {
+    if (index[i] == 2)
+      index[i] = 0;
+  }
+
+  if (selected.length < 3) {
     return {
       index: index,
       moves: 0
     };
-
-    
-  for (var i = index.length-1; i >= 0; i--) {
-    if (index[i] == 2)
-      index[i] = 0;
-    // setColor(i);
   }
 
   var count = 0;
@@ -42,12 +52,12 @@ function highlightInvalidPoints(selected, index, positions) {
       abc[2]
     );
     for (var i = index.length-1; i >= 0; i--) {
-      if (index[i] !== 0)
+      if (index[i] !== 0) {
         continue;
+      }
 
       if (detlast(positions, parts, i) === 0) {
         index[i] = 2;
-        // setColor(i);
         count++;
       }
     }

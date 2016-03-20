@@ -174,38 +174,8 @@
     };
     /* bigcombination */
     var bigNextIndex = function(n, nelem) {
-        // console.log("bni", n.join(""), nelem);
-        // n = n.concat();
-        // // var smallest = n & -n,
-        // //     ripple = n + smallest,
-        // //     new_smallest = ripple & -ripple,
-        // //     ones = ((new_smallest / smallest) >> 1) - 1;
-        // // return ripple | ones;
-        // for (var i = 0; i < nelem; i++) {
-        //     var j = 0;
-        //     while (true) {
-        //         if (j < n.length && n[j] == 1) {
-        //             j++;
-        //             continue;
-        //         } else {
-        //             n[j] = 1;
-        //             break;
-        //         }
-        //     }
-        //     for (var k = 0; k < j; k++) {
-        //         n[k] = 0;
-        //     }
-        // }
-        // // console.log("r", n.join(""))
-        // return n;
-
 
         var result = n.concat();
-        // for (var i = 0; i < result.length; i++) {
-        //     if (result[i] == 0) {
-        //         result[i]
-        //     }
-        // }
         var j = nelem;
         var i = 0;
         for (i = result.length - 1; i >= 0; i--) {
