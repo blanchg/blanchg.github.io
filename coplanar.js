@@ -5,7 +5,7 @@ worker.onmessage = function(e) {
 
   var data = e.data;
   if (data.type === 'results') {
-  	console.log("Received results", data.data.index);
+  	// console.log("Received results", data.data.index);
     var newIndex = data.data.index;
     for (var i = newIndex.length - 1; i >= 0; i--) {
     	if (index[i] != newIndex[i]) {
@@ -65,6 +65,22 @@ function displayEntry(entry) {
         console.log("Tried to split another way");
     }
     console.log("Selecting the vertices");
+    var pMax = 0;
+    coords.forEach(function (c) {
+    	var points = c.split(",");
+    	points.forEach(function(p) {
+    		p = parseInt(p);
+    		if (p > pMax) {
+    			pMax = p;
+    		}
+    	});
+    });
+    pMax = pMax + 1;
+    console.log("Setting grid size to", pMax);
+    params.size = pMax;
+    updateGUI();
+    setGridSize(pMax);
+
     coords.forEach(function (c) {
         c = "(" + c + ")";
         names.forEach(function (name, i) {

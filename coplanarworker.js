@@ -26,14 +26,20 @@ self.addEventListener('message', function(e) {
 
 console.log("Worker is waiting for messages")
 
+var lastSelectedCount = 0;
+
 function highlightInvalidPoints(selected, index, positions) {
 
 
   // Reset old invalid points
-  for (var i = index.length-1; i >= 0; i--) {
-    if (index[i] == 2)
-      index[i] = 0;
+  if (lastSelectedCount > selected.length) {
+    console.log("Resetting old invalid points");
+    for (var i = index.length-1; i >= 0; i--) {
+      if (index[i] == 2)
+        index[i] = 0;
+    }
   }
+  lastSelectedCount = selected.length;
 
   if (selected.length < 3) {
     return {
@@ -45,26 +51,26 @@ function highlightInvalidPoints(selected, index, positions) {
   var count = 0;
   var cs = Combinatorics.bigCombination(selected, 3);
   var abc = null;
-  while(abc = cs.next()) {
+
+  var valid = index.map(function(d,i){ return (d == 0)?i:-1;}).filter(function(d) { return d !== -1; });
+  while(valid.length > 0 && (abc = cs.next())) {
     var parts = detparts(positions,
       abc[0], 
       abc[1], 
       abc[2]
     );
-    for (var i = index.length-1; i >= 0; i--) {
-      if (index[i] !== 0) {
-        continue;
-      }
-
+    for (var j = valid.length-1; j >= 0; j--) {
+      var i = valid[j];
       if (detlast(positions, parts, i) === 0) {
         index[i] = 2;
+        valid.splice(j, 1);
         count++;
       }
     }
   }
   return {
     index: index,
-    moves: index.length - count - selected.length
+    moves: valid.length
   };
 
 }

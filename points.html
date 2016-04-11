@@ -31,6 +31,7 @@
 		<script src="Detector.js"></script>
 		<script src="stats.min.js"></script>
 		<script src="coplanar.js"></script>
+		<script src="search.js"></script>
 
 		<script type="x-shader/x-vertex" id="vertexshader">
 
@@ -127,13 +128,7 @@
 
 			gui.add(params, 'size').min(2).max(97).step(1).name('N').onFinishChange(function(value) {
 			    value = parseInt(value);
-			    if (value > 97)
-			        return;
-			  	buildGeometry(geometry, index, selected, names);
-			  	colors = geometry.getAttribute('customColor');
-				positions = geometry.getAttribute('position');
-			  	gpuPicker.setScene(scene);
-			  	gridChanged();
+			    setGridSize(value);
 			});
 
 			// gui.add(params, 'run').name('Search');
@@ -283,6 +278,16 @@
 		        gridChanged();
 			}
 
+			function setGridSize(value) {
+				if (value > 97)
+			        return;
+			  	buildGeometry(geometry, index, selected, names);
+			  	colors = geometry.getAttribute('customColor');
+				positions = geometry.getAttribute('position');
+			  	gpuPicker.setScene(scene);
+			  	gridChanged();
+			}
+
 
 			document.addEventListener('keyup', function(e) {
 			    if (e.keyCode == 27)
@@ -420,9 +425,9 @@
 			    	console.log("Index:", intersect.index);
 			    	console.log("Particle:",  positions.array[i * 3], positions.array[i * 3 + 1], positions.array[i * 3 + 2]);
 
-			    	console.log("Before:", index[i]);
+			    	// console.log("Before:", index[i]);
 					toggle(i);
-			    	console.log("After:", index[i], index);
+			    	// console.log("After:", index[i], index);
 					colors.needsUpdate = true;
 			        // toggleVertex(intersects[0].object)
 
