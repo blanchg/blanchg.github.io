@@ -70,6 +70,7 @@ function displayEntry(entry) {
         names.forEach(function (name, i) {
             if (name == c) {
                 index[i] = 1;
+				setColor(i);
                 selected.push(i);//selectVertex(i);
             }
         });
