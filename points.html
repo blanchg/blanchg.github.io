@@ -21,7 +21,7 @@
 
 	<body id="body">
 		<div id="container"></div>
-      	<script src="combinations.js"></script>
+      	<script src="combinatorics.js"></script>
 
 		<script src="three.js"></script>
 		<script src="GPUPicker.js"></script>
@@ -30,8 +30,8 @@
 
 		<script src="Detector.js"></script>
 		<script src="stats.min.js"></script>
+		<script src="det.js"></script>
 		<script src="coplanar.js"></script>
-		<script src="search.js"></script>
 
 		<script type="x-shader/x-vertex" id="vertexshader">
 
@@ -281,6 +281,10 @@
 			function setGridSize(value) {
 				if (value > 97)
 			        return;
+			    n = value;
+			    size = n*n*n;
+			    params.size = n;
+    			updateGUI();
 			  	buildGeometry(geometry, index, selected, names);
 			  	colors = geometry.getAttribute('customColor');
 				positions = geometry.getAttribute('position');
@@ -290,8 +294,10 @@
 
 
 			document.addEventListener('keyup', function(e) {
-			    if (e.keyCode == 27)
+			    if (e.keyCode == 27) {
 			        clearAll();
+			        running = false;
+			    }
 
 			    if (e.keyCode == 68)
 			    	debug = !debug;
@@ -601,6 +607,9 @@
 			}
 
 		</script>
+
+
+		<script src="search.js"></script>
 
 	</body>
 
