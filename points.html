@@ -139,6 +139,10 @@
 			gui.add(params, 'thinking').name('Busy');
 			// gui.add(params, 'submitEntry').name('View Entry');
 
+
+			params.search = randomSearch;
+			gui.add(params, 'search').name('Do Search');
+
 			function updateGUI() {
 			      // Iterate over all controllers
 			      for (var i in gui.__controllers) {
@@ -607,9 +611,6 @@
 			}
 
 		</script>
-
-
-		<script src="search.js"></script>
 
 	</body>
 

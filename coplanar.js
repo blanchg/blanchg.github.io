@@ -31,6 +31,10 @@ function gridChanged() {
     	type: 'update',
     	positions: positions.array
     });
+    searchWorker.postMessage({
+    	type: 'update',
+    	positions: positions.array
+    });
 }
 
 
@@ -167,4 +171,78 @@ function updateCalculations() {
     // }
     updateGUI();
 
+}
+
+var searchWorker = new Worker('search.js'); 
+
+var best = 0;
+
+function randomSearch() {
+	best = 0;
+	searchWorker.postMessage({
+		type: 'search',
+		n: n
+	});
+}
+
+searchWorker.onmessage = function(e) {
+
+  var data = e.data;
+  switch (data.type) {
+
+  	case 'results':
+	  	// console.log("Received results", data.data.index);
+	    var newIndex = data.data.index;
+	    selected.length = 0;
+	    for (var i = newIndex.length - 1; i >= 0; i--) {
+	    	if (index[i] != newIndex[i]) {
+	    		index[i] = newIndex[i];
+	    		setColor(i);
+	    	}
+	    	if (index[i] == 1)
+	    		selected.push(i);
+	    }
+	    params.solution = data.data.selected;
+	    params.moves = data.data.moves;
+		colors.needsUpdate = true;
+	    params.thinking = false;
+	    updateGUI();
+	    if (params.solution > best) {
+
+			var threes = Math.ceil(n/2);
+			var twos = n - threes;
+			var theory = threes*3 + twos*2;
+	    	best = params.solution;
+			console.log("Found", params.solution + '/' +  theory, getSelected().map(name).join(","));
+	    }
+  		break;
+
+  	case 'progress':
+	  	// console.log("Received results", data.data.index);
+	    var newIndex = data.data.index;
+	    selected.length = 0;
+	    for (var i = newIndex.length - 1; i >= 0; i--) {
+	    	if (index[i] != newIndex[i]) {
+	    		index[i] = newIndex[i];
+	    		setColor(i);
+	    	}
+	    	if (index[i] == 1)
+	    		selected.push(i);
+	    }
+	    params.solution = data.data.selected;
+	    params.moves = data.data.moves;
+		colors.needsUpdate = true;
+	    params.thinking = false;
+	    updateGUI();
+	    if (params.solution > best) {
+
+			var threes = Math.ceil(n/2);
+			var twos = n - threes;
+			var theory = threes*3 + twos*2;
+	    	best = params.solution;
+			console.log("Found", params.solution + '/' +  theory, getSelected().map(name).join(","));
+	    }
+  		break;
+
+  }
 }

@@ -1,10 +1,29 @@
+importScripts('combinatorics.js');
+importScripts('det.js');
 
-var running = true;
 
-params.search = randomSearch;
+var positions;
+var n;
 
-gui.add(params, 'search').name('Do Search');
+// in worker.js
+self.addEventListener('message', function(e) {
 
+  var data = e.data;
+  if (data.type === 'update') {
+    console.log("Positions updated in search worker");
+    positions = e.data.positions;
+  }
+  if (data.type === 'search') {
+  	n = data.n;
+    var result = randomSearch();
+    // console.log("Calculated result", result);
+    self.postMessage({
+      type: 'results',
+      data: result
+    });
+  }
+
+});
 
 // setTimeout(function() {
 // 	console.log("Timed out stopping search");
@@ -34,6 +53,7 @@ function randomSearch() {
 	var index = new Array(n*n*n);
 	var options = [];
 	var best = [];
+	var bestIndex = [];
 	var counter = 0;
 
 	while (best.length < theory) {
@@ -49,7 +69,7 @@ function randomSearch() {
 		// 	options.splice(selected[i], 1);
 		// }
 		options = validateSlice(index, options, selected);
-		console.log("Searching");
+		// console.log("Searching");
 		while (options.length > 0) {
 			var bestChoice = {index: index, selected: selected, options: null};
 			for (var i = 0; i < options.length; i++) {
@@ -72,7 +92,18 @@ function randomSearch() {
 			options = bestChoice.options;
 			selected = bestChoice.selected;
 
-			console.log("To go", options.length);
+			// console.log("To go", options.length);
+			for (var i = 0; i < selected.length; i++) {
+				index[selected[i]] = 1;
+			}
+		    self.postMessage({
+		      type: 'progress',
+		      data: {
+		      	index: index,
+		      	moves: options.length,
+				selected: selected.length
+		      }
+		    });
 			// var i = Math.floor(Math.random() * options.length);
 			// var next = options[i];
 			// selected.push(next);
@@ -80,21 +111,31 @@ function randomSearch() {
 			// options = validateSlice(index, options, selected);
 		}
 
-		console.log(selected.length);
+		// console.log(selected.length);
 
 		if (selected.length > best.length) {
 			best = selected;
+			bestIndex = index;
 		}
-		console.log("Found", best.length + '/' +  theory, best.map(name).join(","));
+		// console.log("Found", best.length + '/' +  theory, best.map(name).join(","));
 
 		// break;
 		counter++;
 	}
 
-	var entry = best.map(name).join(',');
-	console.log("Best", best.length, entry);
+	// var entry = best.map(name).join(',');
+	// console.log("Best", best.length, entry);
 
-	displayEntry(entry);
+	// displayEntry(entry);
+	for (var i = 0; i < best.length; i++) {
+		bestIndex[best[i]] = 1;
+	}
+
+	return {
+		index: bestIndex,
+		moves: 0,
+		selected: best.length
+	};
 
 }
 
@@ -111,151 +152,6 @@ function findStart(index, options) {
 	return selected;
 }
 
-function validateNext(index, selected, option) {
-
-	var cs = Combinatorics.bigCombination(selected, 3);
-  	var abc = null;
-
-	while(abc = cs.next()) {
-		var parts = detparts(positions.array,
-			abc[0], 
-			abc[1], 
-			abc[2]
-		);
-		if (detlast(positions.array, parts, option) === 0) {
-			return false;
-		}
-	}
-	return true;
-}
-
-function search() {
-
-	// var n = 5;
-	setGridSize(3);
-	var index = new Array(n*n*n);
-	for (var i = 0; i < index.length; i++) {
-		index[i] = 0;
-	}
-
-	// Layer combinations
-	var threes = Math.ceil(n/2);
-	var twos = n - threes;
-	var theory = threes*3 + twos*2;
-	console.log("Threes/Twos", threes, twos,n);
-	console.log("Postions:", positions);
-	var layerSelections = new Array(n);
-	for (var i = 0; i < n; i++) {
-		layerSelections[i] = (i < threes)?3:2;
-	}
-	// layerSelections.push(0);
-	console.log("Layer selections:", layerSelections);
-
-	var lIndex = [];
-	var layerPermutations = Combinatorics.permutation(layerSelections).lazyFilter(function (d) {
-		var perStr = d.join(',');
-		var perStrRev = d.reverse().join(',');
-		if (lIndex.indexOf(perStr) == -1 && lIndex.indexOf(perStrRev) == -1) {
-			lIndex.push(perStr);
-			return true;
-		}
-	});
-	while (layerSelectNum = layerPermutations.next()) {
-		console.log("layerSelectNum", layerSelectNum);
-		var layerSize = n*n;
-		var layerIndex = 0;
-		deepSearch(index.concat(), layerSelectNum, layerSize, [], layerIndex, n, theory);
-	}
-
-	var entry = best.map(name).join(',');
-	console.log("Best", bestSize, entry);
-
-	displayEntry(entry);
-}
-
-
-var best = [];
-var bestSize = 0;
-
-function deepSearch(index, layerSelectNum, layerSize, selected, layerIndex, n, theory) {
-	// console.log(layerIndex, selected);
-	// if (layerIndex == n) {
-		if (selected.length > bestSize) {
-			best = selected;
-			bestSize = selected.length;
-			console.log("Best", bestSize, best, best.map(name).join(','));
-		}
-		// if (selected.length == bestSize) {
-		// 	best.push(selected);
-		// 	// console.log("NEW BEST", best, bestSize);
-		// }
-		// return;
-	// }
-
-	if (!running || bestSize == theory)
-		return;
-
-	var slice = layerSlice(layerIndex, layerSize);
-	slice = validateSlice(index, slice, selected);
-	// console.log(layerIndex, "validated slice", slice);
-	var option = null;
-	if (slice.length < layerSelectNum[layerIndex]) {
-		// var result = selected.concat(slice);
-		// deepSearch(index, layerSelectNum, layerSize, result, layerIndex+1, n);
-		//  we could keep searching here but my theory is that this is less than optimum
-		return;
-	} else {
-		var comb = Combinatorics.bigCombination(slice, layerSelectNum[layerIndex]);
-		console.log("Length", layerIndex, comb.length);
-		while (option = comb.next()) {
-			// console.log("Option", option);
-			// validate this combination with the selected
-			if (validateOption(index, option, selected)) {
-				deepSearch(index.concat(), layerSelectNum, layerSize, selected.concat(option), layerIndex+1, n, theory);
-			}
-		}
-	}
-}
-
-function validateOption(index, option, selected) {
-	if (selected.length < 2) {
-		return true
-	} else if (selected.length == 2) {
-		// return true;
-
-		var cs = Combinatorics.bigCombination(selected.concat(option), 4);
-		var abcd = null;
-		while (abcd = cs.next()) {
-			if (determinant(positions.array, abcd[0], abcd[1], abcd[2], abcd[3]) === 0)
-				return false;
-		}
-	} else {
-		selected = selected.concat();
-		for (var i = 0; i < option.length; i++) {
-			selected.push(option[i]);
-			var cs = Combinatorics.bigCombination(selected, 3);
-  			var abc = null;
-  			while (abc = cs.next()) {
-				var parts = detparts(positions.array,
-					abc[0], 
-					abc[1], 
-					abc[2]
-				);
-				for (var j = i; j < option.length; j++) {
-					var k = option[j];
-					if (detlast(positions.array, parts, k) === 0) {
-						return false;
-					}
-				}
-
-  			}
-
-		}
-	}
-
-	return true;
-}
-
 function validateSlice(index, slice, selected) {
 	if (selected.length < 3) {
 		return slice;
@@ -266,14 +162,14 @@ function validateSlice(index, slice, selected) {
 
 	var valid = slice.filter(function(d) { return index[d] === 0; });
 	while(valid.length > 0 && (abc = cs.next())) {
-		var parts = detparts(positions.array,
+		var parts = detparts(positions,
 			abc[0], 
 			abc[1], 
 			abc[2]
 		);
 		for (var j = valid.length-1; j >= 0; j--) {
 			var i = valid[j];
-			if (detlast(positions.array, parts, i) === 0) {
+			if (detlast(positions, parts, i) === 0) {
 				index[i] = 2;
 				valid.splice(j, 1);
 			}
