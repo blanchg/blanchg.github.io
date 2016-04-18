@@ -43,8 +43,28 @@ function layerSlice(layer, layerSize) {
 	return slice;
 }
 
+function testOption(i, index, options, selected, bestChoice) {
+	var choice = {
+		index: index.concat(),
+		option: options[i],
+		selected: selected.concat()
+	};
+	choice.selected.push(options[i]);
+	choice.options = validateSlice(choice.index, options, choice.selected);
+	if (bestChoice.options == null) {
+		bestChoice = choice;
+	} else if (choice.options.length > bestChoice.options.length) {
+		bestChoice = choice;
+	} else if (choice.options.length == bestChoice.options.length && Math.random() > 0.5) {
+		bestChoice = choice;
+	}
+	return bestChoice;
+}
+
 function randomSearch() {
 	// setGridSize(11);
+
+	console.log("Search started");
 
 	var threes = Math.ceil(n/2);
 	var twos = n - threes;
@@ -71,21 +91,16 @@ function randomSearch() {
 		options = validateSlice(index, options, selected);
 		// console.log("Searching");
 		while (options.length > 0) {
+
 			var bestChoice = {index: index, selected: selected, options: null};
-			for (var i = 0; i < options.length; i++) {
-				var choice = {
-					index: index.concat(),
-					option: options[i],
-					selected: selected.concat()
-				};
-				choice.selected.push(options[i]);
-				choice.options = validateSlice(choice.index, options, choice.selected);
-				if (bestChoice.options == null) {
-					bestChoice = choice;
-				} else if (choice.options.length > bestChoice.options.length) {
-					bestChoice = choice;
-				} else if (choice.options.length == bestChoice.options.length && Math.random() > 0.5) {
-					bestChoice = choice;
+			if (options.length > 200) {
+				for (var j = 0; j < 10; j++) {
+					var i = Math.floor(Math.random() * options.length);
+					bestChoice = testOption(i, index, options, selected, bestChoice);
+				}
+			} else {
+				for (var i = 0; i < options.length; i++) {
+					bestChoice = testOption(i, index, options, selected, bestChoice);
 				}
 			}
 			index = bestChoice.index;
