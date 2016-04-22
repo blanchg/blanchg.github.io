@@ -243,7 +243,10 @@ searchWorker.onmessage = function(e) {
 			var twos = n - threes;
 			var theory = threes*3 + twos*2;
 	    	best = params.solution;
-			console.log("Found", params.solution + '/' +  theory, getSelected().map(name).join(","));
+            var entry = getSelected().map(name).join(",");
+			console.log("Found", params.solution + '/' +  theory, entry);
+            localStorage.setItem("" + n, entry)
+            localStorage.setItem("" + n + "size", solution.size)
 	    }
   		break;
 
