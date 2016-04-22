@@ -215,6 +215,7 @@ searchWorker.onmessage = function(e) {
 	    		best = params.solution;
             		var entry = getSelected().map(name).join(",");
 			console.log("Found", params.solution + '/' +  theory, entry);
+            		document.title = "" + n + " = " + params.solution + '/' +  theory;
 		        localStorage.setItem("" + n, entry)
 		        localStorage.setItem("" + n + "size", selected.length)
 	    }
@@ -245,6 +246,7 @@ searchWorker.onmessage = function(e) {
 	    	best = params.solution;
             var entry = getSelected().map(name).join(",");
 			console.log("Found", params.solution + '/' +  theory, entry);
+            		document.title = "" + n + " = " + params.solution + '/' +  theory;
             localStorage.setItem("" + n, entry)
             localStorage.setItem("" + n + "size", selected.length)
 	    }
