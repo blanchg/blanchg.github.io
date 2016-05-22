@@ -93,8 +93,8 @@ function randomSearch() {
 		while (options.length > 0) {
 
 			var bestChoice = {index: index, selected: selected, options: null};
-			if (options.length > 200) {
-				for (var j = 0; j < 10; j++) {
+			if (options.length > 500) {
+				for (var j = 0; j < 30; j++) {
 					var i = Math.floor(Math.random() * options.length);
 					bestChoice = testOption(i, index, options, selected, bestChoice);
 				}
