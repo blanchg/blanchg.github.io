@@ -13,7 +13,7 @@ var map = new mapboxgl.Map({
 
 map.on('load', function () {
     map.addControl(new mapboxgl.Navigation());
-    // map.addControl(new mapboxgl.Geolocate()); 
+    map.addControl(new mapboxgl.Geolocate()); 
     load('masters');
 });
 
@@ -68,7 +68,7 @@ if ("geolocation" in navigator) {
     }, function (a,b) {
         console.log(a,b);
     },{
-        enableHighAccuracy: true,
+        enableHighAccuracy: false,
         timeout: 5000,
         maximumAge: 0
     });
@@ -76,7 +76,7 @@ if ("geolocation" in navigator) {
   /* geolocation IS NOT available */
 }
 
-var follow = true;
+var follow = false;
 
 var followChanged = function(e) {
     follow = e.target.checked;
