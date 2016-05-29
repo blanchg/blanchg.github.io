@@ -101,7 +101,7 @@ var cacheKey;
 var cache;
 var cacheEtag;
 
-var autosave = false;
+var autosave = true;
 
 function saveMap() {
     console.log(cacheKey, cacheEtag);
