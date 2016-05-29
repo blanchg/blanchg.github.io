@@ -100,15 +100,17 @@ var emptyFeature = {
 var cacheKey;
 var cache;
 var cacheEtag;
+var cacheModified;
 
 var autosave = true;
 
 function saveMap() {
-    console.log(cacheKey, cacheEtag);
-    if (cacheEtag == null || cache == null) {
+    console.log(cacheKey, cacheEtag, cacheModified);
+    if (cache == null) {
         return;
     }
     localStorage.setItem(cacheKey + "-etag", cacheEtag);
+    localStorage.setItem(cacheKey + "-modified", cacheModified);
     localStorage.setItem(cacheKey, cache);
     updateUI();
 }
@@ -135,7 +137,8 @@ function updateUI() {
 
     var cache = localStorage.getItem(cacheKey);
     var cacheEtag = localStorage.getItem(cacheKey + "-etag");
-    var wasCached = cacheEtag != null || cache != null;
+    var cacheModified = localStorage.getItem(cacheKey + "-modified");
+    var wasCached = cacheEtag != null || cache != null || cacheModified != null;
     var btn = document.getElementById("btnSave");
     // console.log(btn.attributes.put);
     if (wasCached) {
@@ -156,12 +159,16 @@ function load(name) {
     cacheKey = 'maps-' + name;
     cache = localStorage.getItem(cacheKey);
     cacheEtag = localStorage.getItem(cacheKey + "-etag");
-    var wasCached = cacheEtag != null || cache != null;
+    cacheModified = localStorage.getItem(cacheKey + "-modified");
+    var wasCached = cacheEtag != null || cache != null || cacheModified != null;
     updateUI();
     var request = new XMLHttpRequest();
     request.open('GET', 'maps/' + name + '.json', true);
     if (cacheEtag != null) {
         request.setRequestHeader("etag", cacheEtag);
+    }
+    if (cacheEtag == null && cacheModified != null) {
+        request.setRequestHeader('last-modified', cacheModified);
     }
 
     request.onload = function(e) {
@@ -171,6 +178,7 @@ function load(name) {
         cache = request.responseText;
         var json = JSON.parse(cache);
         cacheEtag = request.getResponseHeader('etag')?request.getResponseHeader('etag'):cacheEtag
+        cacheModified = request.getResponseHeader('last-modified')?request.getResponseHeader('last-modified'):cacheModified
         // Need to add to the cache here
         if (autosave || wasCached) {
             console.log("Saving");
