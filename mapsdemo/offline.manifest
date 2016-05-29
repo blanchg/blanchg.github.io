@@ -12,11 +12,12 @@ mapbox-gl.js
 topojson.v1.js
 style.json
 index.js
+turf-buffer.js
 
 NETWORK:
 # All URLs that start with the following lines
 # are whitelisted.
-/maps/
+maps/
  
 #FALLBACK:
 #/maps/	notAvailable.json
