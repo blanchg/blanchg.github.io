@@ -10,7 +10,6 @@ CACHE MANIFEST
 mapbox-gl.css
 mapbox-gl.js
 topojson.v1.js
-notAvailable.html
 style.json
 index.js
 
