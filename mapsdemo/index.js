@@ -159,7 +159,7 @@ function load(name) {
     var wasCached = cacheEtag != null || cache != null;
     updateUI();
     var request = new XMLHttpRequest();
-    request.open('GET', '/maps/' + name + '.json', true);
+    request.open('GET', 'maps/' + name + '.json', true);
     if (cacheEtag != null) {
         request.setRequestHeader("etag", cacheEtag);
     }
