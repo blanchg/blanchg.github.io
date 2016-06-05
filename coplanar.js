@@ -26,16 +26,17 @@ worker.onmessage = function(e) {
 // 	positions: positions
 // });
 
-function gridChanged() {
+window.addEventListener('gridChanged', function (e) {
     worker.postMessage({
     	type: 'update',
     	positions: positions.array
     });
     searchWorker.postMessage({
     	type: 'update',
-    	positions: positions.array
+    	positions: positions.array,
+    	names: names
     });
-}
+});
 
 
 function round(v) {
@@ -78,22 +79,64 @@ function displayEntry(entry) {
     	});
     });
     pMax = pMax + 1;
-    console.log("Setting grid size to", pMax);
-    setGridSize(pMax);
+    if (n < pMax) {
+	    console.log("Setting grid size to", pMax);
+	    setGridSize(pMax);
+	}
 
     coords.forEach(function (c) {
         c = "(" + c + ")";
-        names.forEach(function (name, i) {
+        var result = names.some(function (name, i) {
             if (name == c) {
                 index[i] = 1;
 				setColor(i);
                 selected.push(i);//selectVertex(i);
+                return true;
             }
         });
+
+        if (!result) {
+            console.error("Could not find point", c);
+        }
     });
+
+    // test1();
+
+    if (!validateSelection(getSelected())) {
+        return;
+    }
+
     console.log("Updating the calculations");
+    // return;
 	// colors.needsUpdate = true;
     updateCalculations();
+}
+
+
+function test1() {
+    var p = [24, 63, 5, 29, 60, 4, 56, 41, 3, 50, 46, 2];
+    var result = determinant(p, 0, 1, 2, 3);
+    console.log("Det test", result);
+    if (result === 0)
+        console.log("Points are coplanar in test");
+}
+
+
+
+function validateSelection(selected) {
+  
+  var cs = Combinatorics.bigCombination(selected, 4);
+  var abcd = null;
+
+  while (abcd = cs.next()) {
+    // console.log(abcd);
+    if(determinant(positions.array, abcd[0], abcd[1], abcd[2], abcd[3]) === 0) {
+        console.error("These points are coplanar:", abcd.map(name));
+        return false;
+    }
+  }
+  console.log("No points coplanar");
+  return true;
 }
 
 
@@ -212,12 +255,12 @@ searchWorker.onmessage = function(e) {
 			var threes = Math.ceil(n/2);
 			var twos = n - threes;
 			var theory = threes*3 + twos*2;
-	    		best = params.solution;
-            		var entry = getSelected().map(name).join(",");
+	    	best = params.solution;
+            var entry = getSelected().map(name).join(",");
 			console.log("Found", params.solution + '/' +  theory, entry);
-            		document.title = "" + n + " = " + params.solution + '/' +  theory;
-		        localStorage.setItem("" + n, entry)
-		        localStorage.setItem("" + n + "size", selected.length)
+            document.title = "" + n + " = " + params.solution + '/' +  theory;
+            localStorage.setItem("" + n, entry)
+            localStorage.setItem("" + n + "size", selected.length)
 	    }
   		break;
 
@@ -245,8 +288,8 @@ searchWorker.onmessage = function(e) {
 			var theory = threes*3 + twos*2;
 	    	best = params.solution;
             var entry = getSelected().map(name).join(",");
-			console.log("Found", params.solution + '/' +  theory, entry);
-            		document.title = "" + n + " = " + params.solution + '/' +  theory;
+            console.log("Found", params.solution + '/' +  theory, entry);
+            document.title = "" + n + " = " + params.solution + '/' +  theory;
             localStorage.setItem("" + n, entry)
             localStorage.setItem("" + n + "size", selected.length)
 	    }

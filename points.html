@@ -82,7 +82,7 @@
 
 			var renderer, scene, camera, stats;
 
-			var particles, uniforms;
+			var particles, uniforms, lines;
 			var colors;
 			var positions;
 
@@ -111,6 +111,7 @@
 			var windowHalfY = window.innerHeight / 2;
 			var material;
 			var geometry;
+			var lineGeometry;
 			var index = [];
 			var selected = [];
 			var names = [];
@@ -131,14 +132,9 @@
 			    setGridSize(value);
 			});
 
-			// gui.add(params, 'run').name('Search');
-			// gui.add(params, 'stop').name('Stop');
-			// gui.add(params, 'entry').name('Print Entry');
 			gui.add(params, 'solution').name('Solution Size');
 			gui.add(params, 'moves').name('Valid Moves');
 			gui.add(params, 'thinking').name('Busy');
-			// gui.add(params, 'submitEntry').name('View Entry');
-
 
 			params.search = randomSearch;
 			gui.add(params, 'search').name('Do Search');
@@ -178,10 +174,6 @@
 				console.log("Creating ShaderMaterial");
 				material = new THREE.ShaderMaterial( {
 
-					// uniforms: {
-					// 	color:   { type: "c", value: new THREE.Color( 0xffffff ) },
-					// 	texture: { type: "t", value: new THREE.TextureLoader().load( "disc.png" ) }
-					// },
 					uniforms: {
 						size: {
 							type: "f",
@@ -204,21 +196,38 @@
 				console.log("Creating Points");
 				particles = new THREE.Points( geometry, material );
 				particles.name = "particles";
-
-
-
 				axisgroup = new THREE.Object3D();
 				axisgroup.add(particles);
-				scene.add( axisgroup );
 
-				// var geometry = new THREE.SphereGeometry( 5, 32, 32 );
-				// var material = new THREE.MeshBasicMaterial( {color: 0xffff00} );
-				// var sphere = new THREE.Mesh( geometry, material );
-				// scene.add( sphere );
-		         
-		        //load mesh 
-		        // var loader = new THREE.JSONLoader();
-		        // loader.load('models/cube.js', modelLoadedCallback);
+				lineGeometry = new THREE.BufferGeometry();
+				var points = 2;
+				var linePositions = new Float32Array( ((points-2)*2+2) * 3 );
+				var lineColors = new Float32Array( linePositions.length );
+				var first = 0;
+				var last = points-1;
+				for (var i = 0, j = 0; i < points-3; i++) {
+					// console.log("Postions", positions.array[i]);
+					for (var k = i * 3; k < ((i+1)*3); k++) {
+						lineColors[j] = 0.6;
+						linePositions[j++] = positions.array[k];
+					}
+
+					if (i != first && i != last) {
+						for (var k = i * 3; k < ((i+1)*3); k++) {
+							lineColors[j] = 0.6;
+							linePositions[j++] = positions.array[k];
+						}
+					}
+				}
+				lineGeometry.addAttribute( 'position', new THREE.BufferAttribute( linePositions, 3 ) );
+				lineGeometry.addAttribute( 'color', new THREE.BufferAttribute( lineColors, 3 ) );
+				var lineMaterial = new THREE.LineBasicMaterial( { vertexColors: THREE.VertexColors } );
+				lines = new THREE.LineSegments(lineGeometry, lineMaterial);
+				lines.name = "lines";
+				axisgroup.add(lines);
+
+
+				scene.add( axisgroup );
 
 		        axisHelper = new THREE.AxisHelper(6000);
 		        axisHelper.rotation.x = Math.PI/2;
@@ -232,50 +241,51 @@
 		        // axisHelper2.rotation.z = Math.PI/2;
 		        axisgroup.add(axisHelper2);
 
-				renderer = new THREE.WebGLRenderer();
-				renderer.setPixelRatio( window.devicePixelRatio );
-				renderer.setSize( window.innerWidth, window.innerHeight );
-				container.appendChild( renderer.domElement );
-
+		        try {
+					renderer = new THREE.WebGLRenderer();
+					renderer.setPixelRatio( window.devicePixelRatio );
+					renderer.setSize( window.innerWidth, window.innerHeight );
+					container.appendChild( renderer.domElement );
 				//
 
-				controls = new THREE.OrbitControls( camera, renderer.domElement );
-				//controls.addEventListener( 'change', render ); // add this only if there is no animation loop (requestAnimationFrame)
-				controls.enableDamping = false;
-				controls.dampingFactor = 0.1;
-				controls.enableZoom = true;
-				controls.mouseButtons = { ORBIT: THREE.MOUSE.MIDDLE, ZOOM: -1, PAN: THREE.MOUSE.MIDDLE };
-				controls.shiftKeys = { ORBIT: false, ZOOM: false, PAN: true };
-				controls.addEventListener( 'change', onOrbitChange, false );
-				controls.minPolarAngle = Math.PI * 0.1; // radians
-				controls.maxPolarAngle = Math.PI * 0.9; // radians
+					controls = new THREE.OrbitControls( camera, renderer.domElement );
+					//controls.addEventListener( 'change', render ); // add this only if there is no animation loop (requestAnimationFrame)
+					controls.enableDamping = false;
+					controls.dampingFactor = 0.1;
+					controls.enableZoom = true;
+					controls.mouseButtons = { ORBIT: THREE.MOUSE.MIDDLE, ZOOM: -1, PAN: THREE.MOUSE.MIDDLE };
+					controls.shiftKeys = { ORBIT: false, ZOOM: false, PAN: true };
+					controls.addEventListener( 'change', onOrbitChange, false );
+					controls.minPolarAngle = Math.PI * 0.1; // radians
+					controls.maxPolarAngle = Math.PI * 0.9; // radians
 
-				params.resetCamera = function() {
-					controls.reset();
+					params.resetCamera = function() {
+						controls.reset();
+					}
+					gui.add(params, 'resetCamera').name('Reset Camera');
+
+					//
+
+					raycaster = new THREE.Raycaster();
+					mouse = new THREE.Vector2();
+					pickerMouse = new THREE.Vector2();
+					gpuPicker = new THREE.GPUPicker({renderer:renderer, debug: true});
+					gpuPicker.setFilter(function (object) {return object.name == "particles";});
+					gpuPicker.setScene(scene);
+					gpuPicker.setCamera(camera);
+
+					//
+
+					stats = new Stats();
+					stats.domElement.style.position = 'absolute';
+					stats.domElement.style.top = '0px';
+					container.appendChild( stats.domElement );
+
+				//
+				} catch (e) {
+					console.log("Can't display");
 				}
-				gui.add(params, 'resetCamera').name('Reset Camera');
 
-				// controls.pan(10, -10);
-
-				//
-
-				raycaster = new THREE.Raycaster();
-				// raycaster.params.Points.threshold = 0.5;
-				mouse = new THREE.Vector2();
-				pickerMouse = new THREE.Vector2();
-				gpuPicker = new THREE.GPUPicker({renderer:renderer, debug: true});
-				gpuPicker.setFilter(function (object) {return object.name == "particles";});
-				gpuPicker.setScene(scene);
-				gpuPicker.setCamera(camera);
-
-				//
-
-				stats = new Stats();
-				stats.domElement.style.position = 'absolute';
-				stats.domElement.style.top = '0px';
-				container.appendChild( stats.domElement );
-
-				//
 
 				window.addEventListener( 'resize', onWindowResize, false );
 		        container.addEventListener( 'mouseup', onDocumentMouseUp, false );
@@ -290,12 +300,17 @@
 			    params.size = n;
     			updateGUI();
 			  	buildGeometry(geometry, index, selected, names);
+			  	// lines.visible = false;
 			  	colors = geometry.getAttribute('customColor');
 				positions = geometry.getAttribute('position');
-			  	gpuPicker.setScene(scene);
+
+			  	if (gpuPicker) gpuPicker.setScene(scene);
 			  	gridChanged();
 			}
 
+			function gridChanged() {
+				window.dispatchEvent(new Event('gridChanged'));
+			}
 
 			document.addEventListener('keyup', function(e) {
 			    if (e.keyCode == 27) {
@@ -317,11 +332,6 @@
 			function buildGeometry(geometry, index, selected, names) {
 
 				//
-				// console.log("Building geometry");
-				// var geometry1 = new THREE.BoxGeometry( 300, 300, 300, 300, 300, 300 );
-				// console.log("Getting vertices");
-				// var vertices = geometry1.vertices;
-
 				n = params.size;
 				size = n*n*n;
 				spacing = 10;
@@ -333,9 +343,6 @@
 
 				var positions = new Float32Array( size * 3 );
 				var colors = new Float32Array( size * 3 );
-				// var sizes = new Float32Array( size );
-
-				// console.log("Generating vertices")
 
 				var j = 0;
 				var k = 1;
@@ -361,7 +368,8 @@
 
 					index[i] = 0;
 
-					color.setHSL( (z+1)/(endPos+2), 0.9, 0.6); //0.01 + 0.1 * ( i / l ), 1.0, 0.5 );
+// (z+1)/(endPos+2)
+					color.setHSL( 100/256, 1.0, 0.5); //0.01 + 0.1 * ( i / l ), 1.0, 0.5 );
 
 					// color.setRGB( 0, 0.8, 0);
 					color.toArray( colors, i * 3 );
@@ -388,16 +396,13 @@
 
 				}
 
-				// console.log("XYZ",x,y,z);
-
-				// console.log("Creating BufferGeometry");
-
 				// console.log("Set position");
 				geometry.addAttribute( 'position', new THREE.BufferAttribute( positions, 3 ) );
 				// console.log("Set customColor");
 				geometry.addAttribute( 'customColor', new THREE.BufferAttribute( colors, 3 ) );
 				// console.log("Set size")
 				// geometry.addAttribute( 'size', new THREE.BufferAttribute( sizes, 1 ) );
+
 
 				delete geometry.__pickingGeometry;
 
@@ -410,6 +415,10 @@
 
 				if (params.thinking || event.button !== 0)
 					return;
+
+				if (!renderer) {
+					return;
+				}
 
 			    mouse.x = ( ( event.clientX - renderer.domElement.offsetLeft ) / renderer.domElement.width ) * 2 - 1;
 			    mouse.y = - ( ( event.clientY - renderer.domElement.offsetTop ) / renderer.domElement.height ) * 2 + 1;
@@ -490,7 +499,8 @@
 				// console.log("Setting color for",i,"case",index[i], getZ(i));
 				switch(index[i]) {
 					case 0: // Not selected
-						color.setHSL( (getZ(i)+1)/(n+2), 0.9, 0.6); //0.01 + 0.1 * ( i / l ), 1.0, 0.5 );
+						//(getZ(i)+1)/(n+2)
+						color.setHSL( 100/256, 1, 0.5); //0.01 + 0.1 * ( i / l ), 1.0, 0.5 );
 						// color.toArray( colors, i * 3);
 						// console.log(" ",color);
 						colors.setXYZ(i, color.r, color.g, color.b);
@@ -525,6 +535,11 @@
 
 			function onWindowResize() {
 
+
+				if (!renderer) {
+					return;
+				}
+
 			    windowHalfX = window.innerWidth / 2;
 			    windowHalfY = window.innerHeight / 2;
 
@@ -540,72 +555,68 @@
 
 				requestAnimationFrame( animate );
 
-				controls.update();
+				if (controls) controls.update();
 				render();
-				stats.update();
+				if (stats) stats.update();
 
 			}
 
+			var oldKey = "";
+			// var oldLength = 0;
+
 			function render() {
+				var selected = getSelected();
+				lines.visible = selected.length > 1;
+				if (selected.length > 1) {
+					var key = selected.join('');
+					if (key != oldKey) {
+						// console.log("   Key:", key);
+						// console.log("OldKey:", oldKey);
+						oldKey = key;
 
-				// particles.rotation.x += 0.0005;
-				// particles.rotation.y += 0.01;
+						var cmb = Combinatorics.bigCombination(selected, 2);
+						var points = [];
+						var ab = null;
+						while (ab = cmb.next()) {
+							points.push(ab[0], ab[1]);
+						}
+						// console.log("Points", points);
+						// var points = selected.length;
+						linePositions = new Float32Array( (points.length) * 3 );
+						var lineColors = new Float32Array( linePositions.length );
 
-				// var geometry = particles.geometry;
-				// var attributes = geometry.attributes;
+						// console.log("Positions", positions.array);
 
-				// raycaster.setFromCamera( mouse, camera );
+						for (var i = 0; i < points.length; i++) {
+							var j = points[i] * 3;
+							var ax = positions.array[j];
+							var ay = positions.array[j+1];
+							var az = positions.array[j+2];
 
-				// intersects = raycaster.intersectObject( particles );
+							var k = i * 3;
+							lineColors[k] = 0.6;
+							lineColors[k+1] = 0.6;
+							lineColors[k+2] = 0.6;
 
-				// if ( intersects.length > 0 ) {
+							linePositions[k] = ax;
+							linePositions[k+1] = ay;
+							linePositions[k+2] = az;
 
-				// 	if ( INTERSECTED != intersects[ 0 ].index ) {
+						}
 
-				// 		attributes.size.array[ INTERSECTED ] = PARTICLE_SIZE;
+						// console.log("Lines", linePositions);
+						lineGeometry.addAttribute( 'position', new THREE.BufferAttribute( linePositions, 3 ) );
+						lineGeometry.addAttribute( 'color', new THREE.BufferAttribute( lineColors, 3 ) );
 
-				// 		INTERSECTED = intersects[ 0 ].index;
-
-				// 		attributes.size.array[ INTERSECTED ] = PARTICLE_SIZE * 1.25;
-				// 		attributes.size.needsUpdate = true;
-
-				// 	}
-
-				// } else if ( INTERSECTED !== null ) {
-
-				// 	attributes.size.array[ INTERSECTED ] = PARTICLE_SIZE;
-				// 	attributes.size.needsUpdate = true;
-				// 	INTERSECTED = null;
-
-				// }
-
-
-			    // //horizontal rotation   
-			    // axisgroup.rotation.y += ( targetRotationX - axisgroup.rotation.y ) * 0.1;
-
-			    // //vertical rotation 
-			    // finalRotationY = (targetRotationY - axisgroup.rotation.x); 
-
-			     
-			    // if (axisgroup.rotation.x <= 1 && axisgroup.rotation.x >= -1) {
-
-			    //     axisgroup.rotation.x += finalRotationY * 0.1;
-			    // }
-			    // if (axisgroup.rotation.x > 1) {
-
-			    //     axisgroup.rotation.x = 1;
-			    // }
-			    // else if (axisgroup.rotation.x < -1) {
-
-			    //     axisgroup.rotation.x = -1;
-			    // }
+						lineGeometry.needsUpdate = true;
 
 
-			    // gridgroup.rotation.y = axisgroup.rotation.y;
-			    // connectorgroup.rotation.y = axisgroup.rotation.y;
-			    // gridgroup.rotation.x = axisgroup.rotation.x;
-			    // connectorgroup.rotation.x = axisgroup.rotation.x;
+					}
+				}
 
+				if (!renderer) {
+					return;
+				}
 				renderer.render( debug?gpuPicker.pickingScene:scene, camera );
 
 			}

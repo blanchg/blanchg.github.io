@@ -110,3 +110,45 @@ function determinant(a, p1, p2, p3, p4) {
     );
 
 }
+
+
+function determinant3(a, p1, p2, p3) {
+  var i1 = p1*3, i2 = p2*3, i3 = p3*3;
+  var m11 = a[i1], m12 = a[i1 + 1], m13 = a[i1 + 2];
+  var m21 = a[i2], m22 = a[i2 + 1], m23 = a[i2 + 2];
+  var m31 = a[i3], m32 = a[i3 + 1], m33 = a[i3 + 2];
+
+  return (
+      m11*m22*m33
+    + m12*m23*m31
+    + m13*m21*m32
+    - m11*m23*m32
+    - m12*m21*m33
+    - m13*m22*m31
+  )
+}
+
+
+function colinear(a, p1, p2, p3) {
+  var i1 = p1*3, i2 = p2*3, i3 = p3*3;
+  var x1 = a[i1], y1 = a[i1 + 1], z1 = a[i1 + 2];
+  var x2 = a[i2], y2 = a[i2 + 1], z2 = a[i2 + 2];
+  var x3 = a[i3], y3 = a[i3 + 1], z3 = a[i3 + 2];
+
+  var x13 = x1 - x3;
+  var x12 = x1 - x2;
+
+  // x y
+  if ((y1 - y2) * (x1 - x3) != (y1 - y3) * (x1 - x2))
+    return false;
+
+  // x z
+  if ((z1 - z2) * (x1 - x3) != (z1 - z3) * (x1 - x2))
+    return false;
+
+  // y z
+  if ((z1 - z2) * (y1 - y3) != (z1 - z3) * (y1 - y2))
+    return false;
+  
+  return true;
+}
