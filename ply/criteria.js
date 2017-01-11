@@ -213,38 +213,28 @@ function scorePoly(poly, minimise, n) {
     return score;
 }
 
-function mutate(poly, n) {
-    let changeX = Math.random() > 0.5;
-    var copy = new Array(poly.length); //JSON.parse(JSON.stringify(poly));
+function clone(poly) {
+    var copy = new Array(poly.length);
     for (var i = 0; i < poly.length; i++) {
         copy[i] = {x: poly[i].x, y: poly[i].y};
     }
     copy.edges = poly.edges;
-    // if (changeX) {
-    //     var xFrom = Math.floor(Math.random() * n);
-    //     var xTo = xFrom;
-    //     while (xTo == xFrom) {
-    //         xTo = Math.floor(Math.random() * n);
-    //     }
-    //     copy[xFrom].x = poly[xTo].x;
-    //     copy[xTo].x = poly[xFrom].x;
-    // } else {
-    //     var yFrom = Math.floor(Math.random() * n);
-    //     var yTo = yFrom;
-    //     while (yTo == yFrom) {
-    //         yTo = Math.floor(Math.random() * n);
-    //     }
-    //     copy[yFrom].y = poly[yTo].y;
-    //     copy[yTo].y = poly[yFrom].y;
-    // }
+    return copy;
+}
+
+function mutate(poly, n) {
+    var copy = clone(poly);
+
     var xFrom = Math.floor(Math.random() * n);
     var xTo = Math.floor(Math.random() * n);
+    let temp = poly[xFrom].x;
     copy[xFrom].x = poly[xTo].x;
-    copy[xTo].x = poly[xFrom].x;
+    copy[xTo].x = temp;
     var yFrom = Math.floor(Math.random() * n);
     var yTo = Math.floor(Math.random() * n);
+    temp = poly[yFrom].y;
     copy[yFrom].y = poly[yTo].y;
-    copy[yTo].y = poly[yFrom].y;
+    copy[yTo].y = temp;
     return copy;
 }
 
@@ -270,64 +260,6 @@ function generatePoly(n) {
     }
     edges.push([length, 0]);
     poly.edges = edges;
-    return poly;
-}
-
-function mutateShell(poly, n, score) {
-    let changeX = Math.random() > 0.5;
-    var copy = new Array(poly.length); //JSON.parse(JSON.stringify(poly));
-    for (var i = 0; i < poly.length; i++) {
-        copy[i] = {x: poly[i].x, y: poly[i].y};
-    }
-    // if (changeX) {
-    //     var xFrom = Math.floor(Math.random() * n);
-    //     var xTo = xFrom;
-    //     while (xTo == xFrom) {
-    //         xTo = Math.floor(Math.random() * n);
-    //     }
-    //     copy[xFrom].x = poly[xTo].x;
-    //     copy[xTo].x = poly[xFrom].x;
-    // } else {
-    //     var yFrom = Math.floor(Math.random() * n);
-    //     var yTo = yFrom;
-    //     while (yTo == yFrom) {
-    //         yTo = Math.floor(Math.random() * n);
-    //     }
-    //     copy[yFrom].y = poly[yTo].y;
-    //     copy[yTo].y = poly[yFrom].y;
-    // }
-    var xFrom = Math.floor(Math.random() * n);
-    var xTo = Math.floor(Math.random() * n);
-    copy[xFrom].x = poly[xTo].x;
-    copy[xTo].x = poly[xFrom].x;
-    var yFrom = Math.floor(Math.random() * n);
-    var yTo = Math.floor(Math.random() * n);
-    copy[yFrom].y = poly[yTo].y;
-    copy[yTo].y = poly[yFrom].y;
-    return copy;
-}
-
-function generateShell(n) {
-    var poly = [
-        {x:n-2, y:2},
-        {x:2, y:1},
-        {x:1, y:n-2},
-        {x:3,y:n},
-        {x:n,y:n-1},
-        {x:n-1,y:3},
-        ];
-    var cols = [];
-    var rows = [];
-    for (var i = 4; i < n-2; i++) {
-        cols.push(i);
-        rows.push(i);
-    }
-    for (var i = 4; i < n-2; i++) {
-        var x = cols.splice(Math.floor(Math.random() * cols.length), 1)[0];
-        var y = rows.splice(Math.floor(Math.random() * rows.length), 1)[0];
-        poly.push({x:x,y:y});
-    }
-    console.log("Generated", format(poly));
     return poly;
 }
 
@@ -469,7 +401,6 @@ module.exports = {
     flipH,
     flipV,
     normalizeStart,
-    generateShell,
-    mutateShell
+    clone,
 };
 }
