@@ -40,7 +40,9 @@ canvas { position: absolute; }
 <input type="text" name="n" id="n" value="5">
 <button type="button" id="run">Run</button><br>
 <span id="best"></span><br>
-<span id="output"></span>
+<span id="output"></span><br>
+<button type="button" id="fliph">Flip H</button><br>
+<button type="button" id="flipv">Flip V</button><br>
 </div>
 </div>
 
@@ -68,7 +70,7 @@ setInterval(() => {
         return;
     var line = queue.shift();
     // console.log(line);
-    parseInput(line);
+    poly = parseInput(line);
 }, 1000);
 
 var lastInput = null;
@@ -83,7 +85,7 @@ function parseInput(input) {
     var pixelSize = Math.min(stage.clientWidth, stage.clientHeight);
     var rawSplit = input.split("),(");
 
-    var n = rawSplit.length;
+    n = rawSplit.length;
     var padding = 15;
     var totalPadding = padding * 2;
     var size = (pixelSize > n * 3 + totalPadding) ? (Math.floor(pixelSize / n) * n - totalPadding) : (n * 3 + totalPadding);
@@ -157,8 +159,8 @@ function parseInput(input) {
 
 
 var input = "(1,3),(2,2),(3,4),(4,5),(5,1)";
-
-parseInput(input);
+n = 5;
+poly = parseInput(input);
 
 window.addEventListener('resize', () => {
     parseInput();
@@ -178,17 +180,17 @@ function run(thisRunId) {
     // if (storedPoly != null) {
     //     poly = parseInput(storedPoly);
     // } else {
-        poly = minimise?generatePoly(n):generateShell(n);
+        poly = generatePoly(n);
     // }
     console.log(poly);
 
     var state = {
         score: scorePoly(poly, minimise, n),
-        poly: poly,
+        poly: clone(poly),
     };
     var best = {
         score: state.score,
-        poly: poly,
+        poly: clone(poly),
     }
 
     console.log("Initial state", state);
@@ -205,15 +207,7 @@ function run(thisRunId) {
             return;
         k++;
         if (k >= kMax) {
-             // Restart
-            let storedPoly = localStorage.getItem(polyKey);
-            console.log("run for ", n, minimise,storedPoly);
-            let poly = null;
-            // if (storedPoly != null && Math.random() < 0.5) { //
-            //     poly = parseInput(storedPoly);
-            // } else {
-            poly = (n>5)?generatePoly(n):generateShell(n);
-            // }
+            poly = generatePoly(n);
             k = 0;
             state = {
                 score: scorePoly(poly, minimise, n),
@@ -221,18 +215,17 @@ function run(thisRunId) {
             };
         }
         let temp = 1 - k/kMax;
-        let poly = mutateShell(state.poly, n, state.score);
-        let state2 = {
-            poly: poly,
-            score: scorePoly(poly, minimise, n),
-        }
-        let p = P(state.score.val, state2.score.val, temp);
+        poly = mutate(state.poly, n, true);
+        let score = scorePoly(poly, minimise, n);
+        let p = P(state.score.val, score.val, temp);
         if (p > Math.random()) {
-            state = state2;
+            state.poly = poly;
+            state.score = score;
             parseInput(format(poly));
-            if (state.score.val < best.score.val) {
+            if (score.val < best.score.val) {
                 k = 0;
-                best = state;
+                best.poly = clone(poly);
+                best.score = score;
                 console.log(best.score)
                 var formatted = format(best.poly);
                 console.log(formatted);
@@ -272,6 +265,14 @@ function run(thisRunId) {
 }
 document.getElementById('run').addEventListener('click', event => {
     run(++runId);
+});
+
+
+document.getElementById('fliph').addEventListener('click', event => {
+    poly = parseInput(format(flipH(poly, n)));
+});
+document.getElementById('flipv').addEventListener('click', event => {
+    poly = parseInput(format(flipV(poly, n)));
 });
 </script>
 </body>
