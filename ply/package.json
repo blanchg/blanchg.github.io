@@ -1,0 +1,15 @@
+{
+  "name": "poly",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "js-combinatorics": "^0.5.2",
+    "sweepline2": "^0.2.1"
+  }
+}
