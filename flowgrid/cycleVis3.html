@@ -85,6 +85,9 @@ function toggleFullScreen() {
 }
 // window.addEventListener("click", () => toggleFullScreen());
 
+var dateoptions = { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'America/Los_Angeles' };
+var dateformat = new Intl.DateTimeFormat('en-US', dateoptions);
+
 var Settings = function() {
     this.dataSet = 'tuesday';
     this.fullscreen = toggleFullScreen;
@@ -625,13 +628,14 @@ function render() {
 
     var infos = svg.selectAll(".info")
         .data([0]);
-    // infos..remove();   
+    // infos..remove();
+    // new Date(settings.instant + (new Date().getTimezoneOffset() * 60 * 1000))
     infos.enter().append("text")
     infos
         .attr('class','info')
         .attr("x", 30)
         .attr("y", 20)
-        .text(new Date(data[0].loadCompletedTime).toDateString());
+        .text(dateformat.format(new Date(settings.instant)));
 
     function point(a, payload) {
         var o = 0;
