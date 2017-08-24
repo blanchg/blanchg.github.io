@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title></title>
+    <script type="text/javascript" src="dat.gui.js"></script>
+    <script src="d3.js"></script>
+    <link type="text/css" src="dat.gui.css"/>
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            font-size: 12px;
+            font-family: helvetica;
+            background-color: #191E23;
+        }
+        .loader rect {
+            fill: #E1E6EB;
+            opacity: 0.8;
+            stroke: none;
+        }
+        .hauler rect {
+            fill: #64696E;
+            opacity: 0.8;
+            stroke: none;
+        }
+        .dump rect {
+            fill: #64696E;
+            opacity: 0.8;
+            stroke: none;
+        }
+        text {
+            fill: #C8CDD2;
+        }
+        path.load {
+            fill: none;
+            stroke: #08cb36;
+            opacity: 0.8;
+            stroke-width: 1px;
+        }
+
+        path.haul {
+            fill: none;
+            stroke: #08cb36;
+            opacity: 0.8;
+            stroke-width: 1px;
+        }
+
+        rect.cubes {
+            fill: #666;
+            opacity: 0.8;
+        }
+
+        #container {
+            width: 100%;
+            height: 100%;
+        }
+
+        #container > svg {
+            position: absolute;
+            top: 0px;
+            left: 0px;
+        }
+    </style>
+</head>
+<body>
+<div id="container">
+    <svg></svg>
+</div>
+
+<script>
+function toggleFullScreen() {
+  var doc = window.document;
+  var docEl = doc.documentElement;
+
+  var requestFullScreen = docEl.requestFullscreen || docEl.mozRequestFullScreen || docEl.webkitRequestFullScreen || docEl.msRequestFullscreen;
+  var cancelFullScreen = doc.exitFullscreen || doc.mozCancelFullScreen || doc.webkitExitFullscreen || doc.msExitFullscreen;
+
+  if(!doc.fullscreenElement && !doc.mozFullScreenElement && !doc.webkitFullscreenElement && !doc.msFullscreenElement) {
+    requestFullScreen.call(docEl);
+  }
+  else {
+    cancelFullScreen.call(doc);
+  }
+}
+// window.addEventListener("click", () => toggleFullScreen());
+
+var Settings = function() {
+    this.cycleUrl = 'sloan.fri.json';
+    this.fullscreen = toggleFullScreen;
+    this.shiftHours = 12;
+    this.nowTime = this.shiftHours;
+    this.filterAll = false;
+    this.circles = false;
+    this.cubeGap = 1;
+    this.cubeSize = 7;
+}
+
+var settings = new Settings();
+window.onload = function() {
+  var gui = settings.gui = new dat.GUI();
+  // var colors = gui.addFolder("Colors");
+  // colors.addColor(settings, 'fullColor');
+  // colors.addColor(settings, 'emptyColor');
+  // colors.addColor(settings, 'relocateColor');
+  // var q = gui.addFolder("Query");
+  // q.add(settings, "useExampleData");
+  // q.add(settings, "host");
+  // q.add(settings, "startTime");
+  // q.add(settings, "endTime");
+  // q.add(settings, "positionInterval").min(1000).step(1000);
+  // q.add(settings, "query");
+  // // gui.add(settings, 'linePre');
+  // // gui.add(settings, 'lineLength');
+  // gui.add(settings, 'speed', -1000, 1000);
+  // // gui.add(settings, 'particleSpeed');
+
+  gui.add(settings, 'cycleUrl', ['sloan.fri.json', 'sloan.tuesday.json']).onChange(value => query());
+  gui.add(settings, 'fullscreen')
+  gui.add(settings, 'filterAll').onChange(value => render())
+  gui.add(settings, 'circles').onChange(value => {
+    d3.selectAll('.cubes').remove();
+    render();
+  })
+  gui.add(settings, 'cubeSize').onChange(value => render())
+  gui.add(settings, 'cubeGap').onChange(value => render())
+  var nowTimeController = null;
+  gui.add(settings, 'shiftHours').onChange(value => {
+    gui.remove(nowTimeController)
+    nowTimeController = gui.add(settings, 'nowTime', 0, value).onChange(value => render());
+    nowTimeController.setValue(value);
+    nowTimeController.updateDisplay();
+    render();
+  })
+  nowTimeController = gui.add(settings, 'nowTime', 0, settings.shiftHours).onChange(value => render());
+  // // gui.remember(settings);
+
+  query();
+};
+var serverdata = [];
+var resizeId = 0;
+
+
+function query() {
+    if (resizeId != 0) {
+        clearTimeout(resizeId);
+        resizeId = 0;
+    }
+
+    serverdata = [];
+
+    var cycleUrl = settings.cycleUrl; //"data.json";
+    // if (!settings.useExampleData) {
+    //     cycleUrl = settings.host + "/core/site/office_api/production/haul_cycle_report?startTime=" + settings.startTime + "&endTime=" + settings.endTime;
+    //     positionUrl = settings.host + "/core/site/office_api/replay/vehicle/positions?startTime=" + settings.startTime + "&endTime=" + settings.endTime + "&sampleInterval=" + settings.positionInterval;
+    // }
+
+
+    d3.json(cycleUrl, function(error, response) {
+        // console.log("Cycle response", response);
+        if (!response)
+            return;
+        serverdata = response;
+        render();
+    });
+}
+
+window.addEventListener('resize', queueResize);
+
+function queueResize() {
+    if (resizeId != 0) {
+        clearTimeout(resizeId);
+        resizeId = 0;
+    }
+    resizeId = setTimeout(render, 100);
+}
+
+function filterByTime(arr) {
+    if (settings.nowTime != settings.shiftHours) {
+        return arr.filter(d => d.loadTime < settings.instant);
+    } else {
+        return arr;
+    }
+}
+
+function render() {
+
+    resizeId = 0;
+
+    if (serverdata.length == 0)
+        return;
+
+    var firstLoad = new Date(d3.min(serverdata, d => d.loadTime));
+    var shiftStart = new Date(firstLoad.getFullYear(), firstLoad.getMonth(), firstLoad.getDate(), firstLoad.getHours()).getTime();
+    settings.instant = shiftStart + settings.nowTime * 60 * 60 * 1000;
+    // console.log("First load", firstLoad);
+    // console.log("Shift start", shiftStart);
+
+    var data = serverdata;
+    if (settings.filterAll) {
+        data = filterByTime(serverdata);
+    }
+
+    var container = d3.select("#container");
+
+    var svg = container.select("svg")
+        .attr("width", 0)
+        .attr("height", 0);
+
+    var rect = container.node().getBoundingClientRect();
+
+    var left = 20;
+    var right = rect.width - 20;
+    var top = 0;
+    var bottom = rect.height;
+    var width = rect.width;
+    var height = rect.height;
+    var aspect = width / height;
+    svg
+        .attr("width", width)
+        .attr("height", height);
+
+    var yscale = d3.scale.linear()
+        .domain(
+            [100, 0]
+        )
+        .rangeRound([bottom, top]);
+
+    var sortName = function(a, b) {
+        a = a.name;
+        b = b.name;
+        return sortNameString(a, b);
+    }
+
+    var sortNameString = function(a, b) {
+        if (a === b) {
+            return 0;
+        }
+        if (a === "Unknown"){
+            return 1;
+        }
+        if (b === "Unknown") {
+            return -1;
+        }
+        return a < b ? -1 : 1;
+    }
+
+    var index = 0;
+    var loaders = d3.nest()
+        .key(d => d.loaderId)
+        .entries(data)
+        .map(d => {
+            var cycles = filterByTime(d.values);
+            var p = d3.sum(cycles, d => d.nominalPayloadValue);
+            return {
+                id: d.values[0].loaderId,
+                name: d.values[0].loaderName,
+                type: 'loader',
+                index: index++,
+                cycles: cycles.sort((a,b) => sortNameString(a.materialName, b.materialName)),
+                payload: p
+            }
+        })
+        .sort(sortName);
+    var haulers = d3.nest()
+        .key(d => d.haulerId)
+        .entries(data)
+        .map(d => {
+            var cycles = filterByTime(d.values);
+            var p = d3.sum(cycles, d => d.nominalPayloadValue);
+            return {
+                id: d.values[0].haulerId,
+                name: d.values[0].haulerName,
+                type: 'hauler',
+                index: index++,
+                cycles: cycles.sort((a,b) => sortNameString(a.materialName, b.materialName)),
+                payload: p
+            }
+        })
+        .sort(sortName);
+    var dumps = d3.nest()
+        .key(d => d.dumpAreaId)
+        .entries(data)
+        .map(d => {
+            var cycles = filterByTime(d.values);
+            var p = d3.sum(cycles, d => d.nominalPayloadValue);
+            return {
+                id: d.values[0].dumpAreaId,
+                name: d.values[0].dumpAreaName,
+                type: 'dump',
+                index: index++,
+                cycles: cycles.sort((a,b) => sortNameString(a.materialName, b.materialName)),
+                payload: p
+            }
+        })
+        .sort(sortName);
+
+    var materials = d3.nest()
+        .key(d => d.materialId)
+        .entries(serverdata)
+        .map(d => {
+            return {
+                id: d.values[0].materialId,
+                name: d.values[0].materialName,
+                type: 'material',
+                index: 0
+            }
+        })
+        .sort(sortName);
+
+    materials.forEach((d, i) => {
+        d.index = i;
+    });
+
+    var materialxscale = d3.scale.linear()
+        .domain(
+            [0, materials.length]
+        )
+        .rangeRound([left, right-245]);
+
+    var xscale = d3.scale.linear()
+        .domain(
+            [0, index]
+        )
+        .rangeRound([left, right]);
+
+    var boxes = [].concat(
+        loaders,
+        haulers,
+        dumps
+        );
+    boxes.forEach((d, i) => {
+        d.index = i;
+    });
+
+    var loaderCycles = [];
+    var haulerCycles = [];
+
+    var cycles = d3.nest()
+        .key(d => d.loaderId)
+        .key(d => d.haulerId)
+        .key(d => d.materialId)
+        .rollup(leaves => {
+            var sum = d3.sum(leaves, d => d.nominalPayloadValue);
+            var cycle = leaves[0];
+            cycle.payload = sum;
+            cycle.cycles = leaves;
+            loaderCycles.push(Object.assign({}, cycle, {
+                payload: sum,
+                cycles: leaves,
+            }));
+            return leaves;
+        })
+        .entries(filterByTime(data));
+
+    d3.nest()
+        .key(d => d.haulerId)
+        .key(d => d.dumpAreaId)
+        .key(d => d.materialId)
+        .rollup(leaves => {
+            var sum = d3.sum(leaves, d => d.nominalPayloadValue);
+            var cycle = leaves[0];
+            cycle.payload = sum;
+            haulerCycles.push(Object.assign({}, cycle, {
+                payload: sum,
+                cycles: leaves,
+            }));
+            return leaves;
+        })
+        .entries(filterByTime(data));
+
+    // console.log(boxes);
+    var maxPayload =
+    d3.extent(boxes, d => d.payload);
+    // console.log("Max payload", maxPayload);
+    var payloadScale = d3.scale.linear()
+        .domain([0, maxPayload[1]])
+        .range([0,45]);
+    var lookup = {};
+    boxes.forEach(d => {
+        lookup[d.type + d.id] = d.index;
+    });
+
+    var cat = d3.scale.category10();
+    cat("a");
+    var materialColor = function(n) {
+        if (n == "00000000-0000-0000-0000-000000000000")
+            return "#03a9f4";
+        return cat(n);
+    }
+
+    // var cubeScale = d3.scale.linear()
+    //     .domain([0, maxPayload[1]])
+    //     .range([1,maxPayload[1]/100000]);
+
+    // console.log("Each square: ", maxPayload[1] / 100);
+
+    var loaderBoxes = svg.selectAll("g.boxes")
+        .data(boxes, d => d.type + d.id);
+    var newLoaderBoxes = loaderBoxes.enter();
+    var newLoaderBoxesG = newLoaderBoxes.append("g")
+        .attr("class", d => "boxes " + d.type)
+        .attr("transform", d => "translate(" + (30 + xscale(d.index)) + "," + yscale(60) +")");
+    var newLoaderBoxesRect = newLoaderBoxesG.append("rect")
+        .attr("width", 45)
+        .attr("height", 25)
+        .style("fill", d => {
+            if (d.id == "00000000-0000-0000-0000-000000000000")
+                return "#03a9f4";
+            return "";
+        });
+    newLoaderBoxesRect.append("title");
+    loaderBoxes.select('title')
+        .text(d => d.name + ' ' + d.type + ", " + Math.round(d.payload / 1000) + "t");
+    newLoaderBoxesG.append("text");
+    loaderBoxes.select('text')
+        .attr("dx", 22.5)
+        .attr("dy", 40)
+        .style("text-anchor", "middle")
+        .text(d => d.name);
+    loaderBoxes.exit().remove();
+    // loaderBoxes.selectAll("rect")
+        // .attr("x", (d,i) => 30 + xscale(d.index))
+        // .attr("y", yscale(60))
+    loaderBoxes
+        .attr("transform", d => "translate(" + (30 + xscale(d.index)) + "," + yscale(60) +")");
+    // loaderBoxes.selectAll("text");
+        // .attr("x", (d,i) => 30 + xscale(d.index))
+        // .attr("y", yscale(60));
+    var cubeSize = settings.cubeSize;
+    var cubeGap = settings.cubeGap;
+    var cubeStep = cubeSize + cubeGap;
+    var cubesWide = 12;
+    var cubeTime = 60 * 60 * 1000 / cubesWide
+    var cubeTimes = d3.range(0, cubesWide * settings.shiftHours);
+
+    if (settings.circles) {
+        loaderBoxes.each(function(d) {
+            // var numCubes = Math.floor(cubeScale(d.payload));
+            // var cubeData = d3.range(0, numCubes);
+            var loadCubes = d3.select(this).selectAll("circle.cubes").data(cubeTimes);
+            loadCubes.enter().append("circle")
+                .attr("class", "cubes")
+                // .append("title")
+                //     .text(d => d.materialName);
+            loadCubes.exit().remove();
+            loadCubes
+                .attr("cx", (d,i) => {
+                    return ((45 - (cubesWide * cubeStep - cubeGap)) / 2) + (i % cubesWide) * cubeStep + cubeSize/2;
+                })
+                .attr("cy", (d, i) => {
+                    return 50 + (Math.floor(i / cubesWide) * cubeStep) + cubeSize/2;
+                })
+                .style("fill", (timeIndex) => {
+                    let blockStart = shiftStart + timeIndex * cubeTime;
+                    let blockEnd = blockStart + cubeTime;
+                    let cycles = null;
+                    if (d.type == 'dump') {
+                        cycles = d.cycles.filter(cycle => blockStart < cycle.loadCompletedTime && blockEnd > cycle.loadCompletedTime);
+                    } else {
+                        cycles = d.cycles.filter(cycle => blockStart < cycle.loadTime && blockEnd > cycle.loadTime);
+                    }
+                    if (cycles.length == 0) {
+                        return '#333';
+                    } else if (cycles.length == 1) {
+                        return materialColor(cycles[0].materialId);
+                    } else {
+                        let materials = d3.nest()
+                            .key(d => d.materialId)
+                            .entries(cycles);
+                        if (materials.length == 1) {
+                            return materialColor(materials[0].key);
+                        } else {
+                            return materialColor(materials[0].key);
+                        }
+                        return '#fff';
+                    }
+                })
+                .attr("r", cubeSize/2);
+        });
+    } else {
+        loaderBoxes.each(function(d) {
+            // var numCubes = Math.floor(cubeScale(d.payload));
+            // var cubeData = d3.range(0, numCubes);
+            var loadCubes = d3.select(this).selectAll("rect.cubes").data(cubeTimes);
+            loadCubes.enter().append("rect")
+                .attr("class", "cubes")
+                // .append("title")
+                //     .text(d => d.materialName);
+            loadCubes.exit().remove();
+            loadCubes
+                .attr("x", (d,i) => {
+                    return ((45 - (cubesWide * cubeStep - cubeGap)) / 2) + (i % cubesWide) * cubeStep;
+                })
+                .attr("y", (d, i) => {
+                    return 50 + (Math.floor(i / cubesWide) * cubeStep);
+                })
+                .style("fill", (timeIndex) => {
+                    let blockStart = shiftStart + timeIndex * cubeTime;
+                    let blockEnd = blockStart + cubeTime;
+                    let cycles = null;
+                    if (d.type == 'dump') {
+                        cycles = d.cycles.filter(cycle => blockStart < cycle.loadCompletedTime && blockEnd > cycle.loadCompletedTime);
+                    } else {
+                        cycles = d.cycles.filter(cycle => blockStart < cycle.loadTime && blockEnd > cycle.loadTime);
+                    }
+                    if (cycles.length == 0) {
+                        return '#333';
+                    } else if (cycles.length == 1) {
+                        return materialColor(cycles[0].materialId);
+                    } else {
+                        let materials = d3.nest()
+                            .key(d => d.materialId)
+                            .entries(cycles);
+                        if (materials.length == 1) {
+                            return materialColor(materials[0].key);
+                        } else {
+                            return materialColor(materials[0].key);
+                        }
+                        return '#fff';
+                    }
+                })
+                .attr("width", cubeSize)
+                .attr("height", cubeSize);
+        });
+    }
+
+    loaderCycles.sort((a, b) => {
+        ax1 = xscale(lookup["loader" + a.loaderId]);
+        ax2 = xscale(lookup["hauler" + a.haulerId]);
+        bx1 = xscale(lookup["loader" + b.loaderId]);
+        bx2 = xscale(lookup["hauler" + b.haulerId]);
+        ax = ax2 - ax1;
+        bx = bx2 - bx1;
+        if (ax == bx) {
+            return bx1 - ax1;
+        }
+        return bx - ax;
+    })
+    .sort((a, b) => sortNameString(b.loaderName, a.loaderName));
+
+    haulerCycles.sort((a, b) => {
+        ax1 = xscale(lookup["hauler" + a.haulerId]);
+        ax2 = xscale(lookup["dump" + a.dumpAreaId]);
+        bx1 = xscale(lookup["hauler" + b.haulerId]);
+        bx2 = xscale(lookup["dump" + b.dumpAreaId]);
+        ax = ax2 - ax1;
+        bx = bx2 - bx1;
+        if (ax == bx) {
+            return bx1 - ax1;
+        }
+        return bx - ax;
+    })
+    .sort((a, b) => sortNameString(b.haulerName, a.haulerName));    
+
+    var colorScale = d3.scale.linear()
+    .domain([0, loaderCycles.length - 1])
+    .range(["#e5f5f9", "#00441b"])
+
+
+    var offset = {};
+    var loadCurves = svg.selectAll("path.load")
+        .data(loaderCycles);
+    loadCurves.enter().append("path")
+        .attr("class", "load");
+    loadCurves.exit().remove();
+    loadCurves
+        .attr("d", d => "M" + point("loader" + d.loaderId, d.payload) + " " + yscale(60) + " A" + center("loader" + d.loaderId, "hauler" + d.haulerId) + " " + archeight("loader" + d.loaderId, "hauler" + d.haulerId) + " 0 0 1 " + point("hauler" + d.haulerId, d.payload) + " " + yscale(60))
+        .style("stroke-width", d => payloadScale(d.payload))
+        .style("stroke", d => {
+            return materialColor(d.materialId);
+            // if (d.loaderId == "00000000-0000-0000-0000-000000000000" ||
+            //     d.haulerId == "00000000-0000-0000-0000-000000000000")
+            //     return "#03a9f4";
+            // return "";
+        })
+        // .style("stroke", (d, i) => colorScale(i))
+        .append("title")
+            .text(d => [d.loaderName, d.haulerName, Math.round(d.payload / 1000) + "t"].join(', '));
+
+    console.log("Hauler cycles", haulerCycles)
+
+    // var offset = {};
+    var haulCurves = svg.selectAll("path.haul")
+        .data(haulerCycles);
+    haulCurves.enter().append("path")
+        .attr("class", "haul");
+    haulCurves.exit().remove();
+    haulCurves
+        .attr("d", d => "M" + point("hauler" + d.haulerId, d.payload) + " " + yscale(60) + " A" + center("hauler" + d.haulerId, "dump" + d.dumpAreaId) + " " + archeight("hauler" + d.haulerId, "dump" + d.dumpAreaId) + " 0 0 1 " + point("dump" + d.dumpAreaId, d.payload) + " " + yscale(60))
+        .style("stroke-width", d => payloadScale(d.payload))
+        .style("stroke", d => {
+            return materialColor(d.materialId);
+            // if (d.dumpAreaId == "00000000-0000-0000-0000-000000000000" ||
+            //     d.haulerId == "00000000-0000-0000-0000-000000000000")
+            //     return "#03a9f4";
+            // return "";
+        })
+        .append("title")
+            .text(d => [d.haulerName, d.dumpAreaName, Math.round(d.payload / 10) / 100 + "t"].join(', '));
+
+
+    var materialBoxes = svg.selectAll("g.materials")
+        .data(materials, d => d.type + d.id);
+    var newMaterialBoxes = materialBoxes.enter();
+    var newMaterialBoxesG = newMaterialBoxes.append("g")
+        .attr("class", d => "materials " + d.type)
+    materialBoxes
+        .attr("transform", d => "translate(" + (30 + materialxscale(d.index)) + "," + 30 +")");
+    var newMaterialBoxesRect = newMaterialBoxesG.append("rect")
+        .attr("width", 24)
+        .attr("height", 24)
+        .style("fill", d => materialColor(d.id));
+
+    newMaterialBoxesRect.append("title")
+        .text(d => d.name + ", " + Math.round(d.payload / 1000) + "t");
+    newMaterialBoxesG.append("text")
+        .attr("dx", 30)
+        .attr("dy", 17)
+        .style("text-anchor", "left")
+        .text(d => d.name);
+    materialBoxes.exit().remove();
+
+    var infos = svg.selectAll(".info")
+        .data([0]);
+    // infos..remove();   
+    infos.enter().append("text")
+    infos
+        .attr('class','info')
+        .attr("x", 30)
+        .attr("y", 20)
+        .text(new Date(data[0].loadCompletedTime).toDateString());
+
+    function point(a, payload) {
+        var o = 0;
+        if (!offset[a]) {
+            offset[a] = 0;
+        }
+        var ps = payloadScale(payload);
+        o = offset[a]
+        offset[a] = o + ps;
+        return xscale(lookup[a]) + 30 + (ps/2) + o;// + 30 - ps / 2;
+    }
+    function diff(a, b) {
+        var ax = lookup[a];
+        var bx = lookup[b];
+        return bx-ax;
+    }
+    function center(a, b) {
+        var ax = point(a, 0);
+        var bx = point(b, 0);
+        return ((bx - ax) / 2);
+    }
+    function archeight(a, b) {
+        return Math.abs(lookup[a] - lookup[b]) * yscale(4);
+    }
+}
+
+</script>
+</body>
+</html>

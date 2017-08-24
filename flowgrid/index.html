@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title></title>
+    <script src="d3.js"></script>
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+        }
+        svg {
+            background-color: #333333;
+        }
+
+        circle, rect {
+            stroke: #666666;
+            fill: #444444;
+        }
+
+        .load {
+            fill: #9f3;
+            stroke: #9f3;
+            /*stroke-width: 2;*/
+        }
+
+        #time {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: #fff;
+        }
+    </style>
+</head>
+<body>
+<div id="container"></div>
+<div id="time"></div>
+<script>
+
+d3.json("data.json", function(error, data) {
+
+    console.log(data[0]);
+    var container = d3.select("#container");
+
+    var linePre = 200 * 1000;
+    var lineLength = 200 * 1000;
+    var speed = 2000;
+
+    // var svg = container.append("svg")
+    //     .attr("width", 500)
+    //     .attr("height", 500);
+
+    var canvas = container.append("canvas")
+        .attr("width", 500)
+        .attr("height", 500);
+
+    var context = canvas.node().getContext("2d");
+
+    var xextents = d3.extent(
+                [].concat(
+                    d3.extent(data, d => d.loadPositionX),
+                    d3.extent(data, d => d.dumpPositionX)
+                )
+            );
+    var yextents = d3.extent(
+                [].concat(
+                    d3.extent(data, d => d.loadPositionY),
+                    d3.extent(data, d => d.dumpPositionY)
+                )
+            );
+
+    var xdiff = xextents[1] - xextents[0];
+    var ydiff = yextents[1] - yextents[0];
+
+    if (xdiff > ydiff) {
+        yextents[0] -= xdiff/2;
+        yextents[1] += xdiff/2;
+    } else {
+        xextents[0] -= ydiff/2;
+        xextents[1] += ydiff/2;
+    }
+
+    var xscale = d3.scale.linear()
+        .domain(
+            xextents
+        )
+        .range([0, 500]);
+
+    var yscale = d3.scale.linear()
+        .domain(
+            yextents
+        )
+        .range([0, 500]);
+
+    var timeextents = d3.extent(
+        [].concat(
+            d3.extent(data, d => d.loadTime),
+            d3.extent(data, d => d.dumpTime)
+        )
+    );
+
+    var currentTime = timeextents[0];
+
+    var lastTime = 0;
+
+    requestAnimationFrame(step);
+
+    function step(time) {
+        var delta =  time - lastTime;
+        lastTime = time;
+        // console.log(currentTime, delta);
+        currentTime += delta * speed;
+
+        if (currentTime > timeextents[1]) {
+            console.log("Restart");
+            currentTime = timeextents[0];
+            context.fillStyle = "rgba(30, 0, 0, 1)";
+
+        } else {
+            context.fillStyle = "rgba(30, 30, 30, 0.3)";
+        }
+
+        context.rect(0, 0, 500, 500);
+        context.fill();
+
+        var now = new Date(currentTime);
+        var mins = "" + now.getMinutes();
+        if (mins.length < 2) {
+            mins = "0" + mins;
+        }
+        document.getElementById('time').innerHTML = '' + now.getHours() + ":" + mins;
+
+
+        var currentData = data.filter(d => d.loadTime - linePre < currentTime && d.dumpTime + lineLength > currentTime && d.loadPositionX && d.loadPositionY && d.dumpPositionX && d.dumpPositionY);
+
+        // console.log("Current Data", currentData.length);
+
+        // var loadData = data.filter(d => d.loadPositionX && d.loadPositionY);
+        // var points = svg.selectAll("rect")
+        //     .data(data);
+
+        // points.enter().append("rect");
+
+        // points.exit().remove();
+
+        // points
+        //     .attr("x", d => xscale(d.loadPositionX) - 5)
+        //     .attr("y", d => yscale(d.loadPositionY) - 5)
+        //     .attr("width", 10)
+        //     .attr("height", 10);
+
+        // var circleData = data.filter(d => d.dumpPositionX && d.dumpPositionY);
+
+        // var points = svg.selectAll("circle")
+        //     .data(circleData);
+
+        // points.enter()
+        //     .append("circle")
+        //     .attr("class", "dump");
+
+        // points.exit().remove();
+
+        // points
+        //     .attr("cx", d => xscale(d.dumpPositionX))
+        //     .attr("cy", d => yscale(d.dumpPositionY))
+        //     .attr("r", 5);
+
+        // var currentPairs = d3.pairs(currentData);
+
+        // var lines = svg.selectAll("circle.load")
+        //     .data(currentData);
+
+        // lines.enter()
+        //     .append("circle")
+        //     .attr("class", "load");
+
+        // lines.exit().remove();
+
+        // lines
+        //     .attr("cx", d => xscale(lerp(d.loadPositionX, d.dumpPositionX, getPercent(d, currentTime))) )
+        //     .attr("cy", d => yscale(lerp(d.loadPositionY, d.dumpPositionY, getPercent(d, currentTime))) )
+        //     .attr("r", 3);
+
+        currentData.forEach(function(d) {
+            context.beginPath();
+            context.strokeStyle = "#9f3";
+            context.lineWidth = 2;
+            context.moveTo(
+                xscale(lerp(d.loadPositionX, d.dumpPositionX, getPercent(d, currentTime - delta*speed))),
+                yscale(lerp(d.loadPositionY, d.dumpPositionY, getPercent(d, currentTime - delta*speed)))
+                );
+            context.lineTo(
+                xscale(lerp(d.loadPositionX, d.dumpPositionX, getPercent(d, currentTime))),
+                yscale(lerp(d.loadPositionY, d.dumpPositionY, getPercent(d, currentTime)))
+                );
+            context.stroke();
+            // context.closePath();
+        });
+
+        // lines
+        //     .attr("x1", d => xscale(lerp(d.loadPositionX, d.dumpPositionX, getPercent(d, currentTime-lineLength))) )
+        //     .attr("y1", d => yscale(lerp(d.loadPositionY, d.dumpPositionY, getPercent(d, currentTime-lineLength))) )
+        //     .attr("x2", d => xscale(lerp(d.loadPositionX, d.dumpPositionX, getPercent(d, currentTime))) )
+        //     .attr("y2", d => yscale(lerp(d.loadPositionY, d.dumpPositionY, getPercent(d, currentTime))) );
+
+        requestAnimationFrame(step);
+    }
+
+});
+
+function lerp(start, end, percent) {
+    return ((end - start) * percent) + start;
+}
+
+function getPercent(d, time) {
+    var diff = d.dumpTime - d.loadTime;
+    var now = time - d.loadTime;
+    if (now <= 0)
+        return 0;
+    if (now > diff)
+        return 1;
+    return now / diff;
+}
+
+</script>
+</body>
+</html>
